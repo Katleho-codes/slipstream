@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Better Auth core tables ──────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+  employer      Employer?
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+
+// ─── SlipStream domain tables ─────────────────────────────────────────────────
+
+model Employer {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  companyName String
+  regNumber   String?
+  vatNumber   String?
+  phone       String?
+  address     String?
+  logoUrl     String?
+  plan        Plan    @default(STARTER)
+  isActive    Boolean @default(true)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  employees   Employee[]
+  payPeriods  PayPeriod[]
+
+  @@map("employers")
+}
+
+model Employee {
+  id           String   @id @default(cuid())
+  employerId   String
+  employer     Employer @relation(fields: [employerId], references: [id], onDelete: Cascade)
+
+  firstName    String
+  lastName     String
+  idNumber     String?
+  email        String?
+  phone        String?
+  role         String?
+  department   String?
+  employeeCode String @unique
+  bankName     String?
+  bankAccount  String?
+  bankBranch   String?
+  isActive     Boolean  @default(true)
+  startDate    DateTime?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  payslips     Payslip[]
+
+  @@unique([employerId, email])
+  @@map("employees")
+}
+
+model PayPeriod {
+  id          String   @id @default(cuid())
+  employerId  String
+  employer    Employer @relation(fields: [employerId], references: [id], onDelete: Cascade)
+
+  periodStart DateTime
+  periodEnd   DateTime
+  payDate     DateTime
+  label       String
+
+  createdAt   DateTime @default(now())
+
+  payslips    Payslip[]
+
+  @@map("pay_periods")
+}
+
+model Payslip {
+  id          String    @id @default(cuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  periodId    String
+  period      PayPeriod @relation(fields: [periodId], references: [id])
+
+  grossSalary Float
+  overtimePay Float       @default(0)
+  bonus       Float       @default(0)
+  allowances  Float       @default(0)
+
+  paye        Float       @default(0)
+  uif         Float       @default(0)
+  sdl         Float       @default(0)
+
+  netPay      Float
+
+  pdfUrl      String?
+  verifyToken String      @unique @default(cuid())
+  emailSentAt DateTime?
+  emailStatus EmailStatus @default(PENDING)
+
+  issuedAt    DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  deductions  Deduction[]
+
+  @@map("payslips")
+}
+
+model Deduction {
+  id        String        @id @default(cuid())
+  payslipId String
+  payslip   Payslip       @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+
+  label     String
+  amount    Float
+  type      DeductionType @default(FIXED)
+
+  @@map("deductions")
+}
+
+enum Plan {
+  STARTER
+  GROWTH
+  BUSINESS
+  ENTERPRISE
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum DeductionType {
+  FIXED
+  PERCENTAGE
+}

@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+:root {
+    /* Palette */
+    --ink: #0d0d0d;
+    --ink-2: #3a3a3a;
+    --ink-3: #6b6860;
+    --ink-4: #9a9890;
+    --ground: #f7f5f1;
+    --surface: #ffffff;
+    --surface-2: #f0f4f1;
+    --border: #c8d9cc;
+    --border-2: #e2ede5;
+
+    /* Brand greens — drawn from SA rand note */
+    --green-1: #1a3d2b;
+    --green-2: #2d6a4f;
+    --green-3: #3d8b6a;
+    --green-light: #eaf2ec;
+
+    /* Status */
+    --amber: #92600a;
+    --amber-light: #fdf6e3;
+    --amber-border: #e8c87a;
+    --red: #b91c1c;
+    --red-light: #fef2f2;
+    --red-border: #fecaca;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 13px;
+}
+
+body {
+    font-family: "Inter", system-ui, sans-serif;
+    background: var(--ground);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Tabular nums everywhere money appears */
+.tabnum {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Ledger border — the signature element */
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+}

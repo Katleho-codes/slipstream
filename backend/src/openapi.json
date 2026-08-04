@@ -1,0 +1,482 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SlipStream API",
+    "version": "1.0.0",
+    "description": "Digital payslip & pay history API for South African employers — by Lsquared Technologies (Pty) Ltd.\n\nAuth is handled by Better Auth at `/api/auth/*` (sign-up, sign-in, sign-out, session). All other endpoints require a valid session cookie or Bearer token.",
+    "contact": { "name": "Lsquared Technologies", "url": "https://lsquared.org.za" }
+  },
+  "servers": [
+    { "url": "http://localhost:8003", "description": "Local development" }
+  ],
+  "tags": [
+    { "name": "Auth", "description": "Better Auth — sign-up, sign-in, session, sign-out" },
+    { "name": "Employer", "description": "Employer profile management" },
+    { "name": "Employees", "description": "Manage employee records" },
+    { "name": "Pay Periods", "description": "Manage payroll periods" },
+    { "name": "Payslips", "description": "Create, issue, and verify payslips" },
+    { "name": "Public", "description": "No authentication required" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "slipstream.session_token",
+        "description": "Better Auth session cookie, set automatically after sign-in."
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Better Auth session token, alternative to cookie auth."
+      }
+    },
+    "schemas": {
+      "Employer": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "clx1a2b3c0001" },
+          "companyName": { "type": "string", "example": "Prestige Clothing (Pty) Ltd" },
+          "regNumber": { "type": "string", "nullable": true, "example": "2019/123456/07" },
+          "vatNumber": { "type": "string", "nullable": true },
+          "phone": { "type": "string", "nullable": true, "example": "011 555 1234" },
+          "address": { "type": "string", "nullable": true },
+          "plan": { "type": "string", "enum": ["STARTER", "GROWTH", "BUSINESS", "ENTERPRISE"] },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Employee": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "firstName": { "type": "string", "example": "Thabo" },
+          "lastName": { "type": "string", "example": "Mokoena" },
+          "idNumber": { "type": "string", "nullable": true },
+          "email": { "type": "string", "nullable": true, "example": "thabo@email.com" },
+          "phone": { "type": "string", "nullable": true },
+          "role": { "type": "string", "nullable": true, "example": "Machine Operator" },
+          "department": { "type": "string", "nullable": true },
+          "employeeCode": { "type": "string", "nullable": true },
+          "isActive": { "type": "boolean" },
+          "startDate": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "PayPeriod": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string", "example": "March 2026" },
+          "periodStart": { "type": "string", "format": "date-time" },
+          "periodEnd": { "type": "string", "format": "date-time" },
+          "payDate": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Deduction": {
+        "type": "object",
+        "properties": {
+          "label": { "type": "string", "example": "Medical aid" },
+          "amount": { "type": "number", "example": 745 },
+          "type": { "type": "string", "enum": ["FIXED", "PERCENTAGE"] }
+        }
+      },
+      "Payslip": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "employeeId": { "type": "string" },
+          "periodId": { "type": "string" },
+          "grossSalary": { "type": "number", "example": 8500 },
+          "overtimePay": { "type": "number", "example": 0 },
+          "bonus": { "type": "number", "example": 0 },
+          "allowances": { "type": "number", "example": 0 },
+          "paye": { "type": "number", "example": 1190 },
+          "uif": { "type": "number", "example": 85 },
+          "sdl": { "type": "number", "example": 0 },
+          "netPay": { "type": "number", "example": 6480 },
+          "verifyToken": { "type": "string" },
+          "emailStatus": { "type": "string", "enum": ["PENDING", "SENT", "FAILED"] },
+          "issuedAt": { "type": "string", "format": "date-time" },
+          "deductions": { "type": "array", "items": { "$ref": "#/components/schemas/Deduction" } }
+        }
+      },
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "message": { "type": "string" },
+          "data": {}
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "message": { "type": "string", "example": "Validation failed" },
+          "errors": { "type": "array", "items": { "type": "object" } }
+        }
+      }
+    }
+  },
+  "security": [{ "sessionCookie": [] }, { "bearerAuth": [] }],
+  "paths": {
+    "/api/auth/sign-up/email": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Register a new employer account",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "password"],
+                "properties": {
+                  "name": { "type": "string", "example": "Prestige Clothing" },
+                  "email": { "type": "string", "format": "email", "example": "admin@prestige-clothing.co.za" },
+                  "password": { "type": "string", "minLength": 8, "example": "password123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Account created, session established via cookie" },
+          "422": { "description": "Validation error" }
+        }
+      }
+    },
+    "/api/auth/sign-in/email": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Sign in with email and password",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Signed in, session cookie set" },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/api/auth/sign-out": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Sign out and clear the session",
+        "responses": { "200": { "description": "Signed out" } }
+      }
+    },
+    "/api/auth/get-session": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get the current session, if any",
+        "responses": { "200": { "description": "Session object or null" } }
+      }
+    },
+    "/api/employer/me": {
+      "get": {
+        "tags": ["Employer"],
+        "summary": "Get the authenticated employer's full profile",
+        "responses": {
+          "200": {
+            "description": "Employer profile",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Employer" } } }
+          },
+          "401": { "description": "Not authenticated" }
+        }
+      }
+    },
+    "/api/employer/profile": {
+      "patch": {
+        "tags": ["Employer"],
+        "summary": "Update company profile details",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyName": { "type": "string" },
+                  "regNumber": { "type": "string" },
+                  "vatNumber": { "type": "string" },
+                  "phone": { "type": "string" },
+                  "address": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Profile updated" } }
+      }
+    },
+    "/api/employees": {
+      "get": {
+        "tags": ["Employees"],
+        "summary": "List employees",
+        "parameters": [
+          { "name": "active", "in": "query", "schema": { "type": "boolean" }, "description": "Filter by active status" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of employees",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Employee" } } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Employees"],
+        "summary": "Create a new employee",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["firstName", "lastName"],
+                "properties": {
+                  "firstName": { "type": "string" },
+                  "lastName": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "phone": { "type": "string" },
+                  "role": { "type": "string" },
+                  "department": { "type": "string" },
+                  "idNumber": { "type": "string" },
+                  "startDate": { "type": "string", "format": "date" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Employee created" },
+          "403": { "description": "Plan employee limit reached" },
+          "409": { "description": "Employee with this email already exists" }
+        }
+      }
+    },
+    "/api/employees/{id}": {
+      "get": {
+        "tags": ["Employees"],
+        "summary": "Get an employee + recent payslip history",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Employee with payslips" }, "404": { "description": "Not found" } }
+      },
+      "patch": {
+        "tags": ["Employees"],
+        "summary": "Update an employee",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Employee updated" } }
+      },
+      "delete": {
+        "tags": ["Employees"],
+        "summary": "Deactivate an employee (soft delete)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Employee deactivated" } }
+      }
+    },
+    "/api/pay-periods": {
+      "get": {
+        "tags": ["Pay Periods"],
+        "summary": "List pay periods",
+        "responses": {
+          "200": {
+            "description": "Array of pay periods",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/PayPeriod" } } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Pay Periods"],
+        "summary": "Create a pay period",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["label", "periodStart", "periodEnd", "payDate"],
+                "properties": {
+                  "label": { "type": "string", "example": "April 2026" },
+                  "periodStart": { "type": "string", "format": "date", "example": "2026-04-01" },
+                  "periodEnd": { "type": "string", "format": "date", "example": "2026-04-30" },
+                  "payDate": { "type": "string", "format": "date", "example": "2026-04-28" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Pay period created" } }
+      }
+    },
+    "/api/pay-periods/{id}": {
+      "delete": {
+        "tags": ["Pay Periods"],
+        "summary": "Delete a pay period",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Deleted" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/payslips": {
+      "get": {
+        "tags": ["Payslips"],
+        "summary": "List payslips",
+        "parameters": [
+          { "name": "periodId", "in": "query", "schema": { "type": "string" } },
+          { "name": "employeeId", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of payslips",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Payslip" } } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Payslips"],
+        "summary": "Create a payslip",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["employeeId", "periodId", "grossSalary"],
+                "properties": {
+                  "employeeId": { "type": "string" },
+                  "periodId": { "type": "string" },
+                  "grossSalary": { "type": "number", "example": 8500 },
+                  "overtimePay": { "type": "number", "default": 0 },
+                  "bonus": { "type": "number", "default": 0 },
+                  "allowances": { "type": "number", "default": 0 },
+                  "paye": { "type": "number", "default": 0, "example": 1190 },
+                  "uif": { "type": "number", "description": "Auto-calculated if omitted (1% of gross, capped)" },
+                  "sdl": { "type": "number", "default": 0 },
+                  "deductions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["label", "amount"],
+                      "properties": {
+                        "label": { "type": "string", "example": "Medical aid" },
+                        "amount": { "type": "number", "example": 745 },
+                        "type": { "type": "string", "enum": ["FIXED", "PERCENTAGE"], "default": "FIXED" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Payslip created" },
+          "409": { "description": "Payslip already exists for this employee + period" },
+          "422": { "description": "Net pay would be negative" }
+        }
+      }
+    },
+    "/api/payslips/{id}": {
+      "get": {
+        "tags": ["Payslips"],
+        "summary": "Get full payslip detail",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Payslip detail" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/payslips/{id}/issue": {
+      "post": {
+        "tags": ["Payslips"],
+        "summary": "Issue a payslip — generates PDF and emails the employee",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Issue result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "payslipId": { "type": "string" },
+                    "pdf": { "type": "boolean" },
+                    "email": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payslips/{id}/pdf": {
+      "get": {
+        "tags": ["Payslips"],
+        "summary": "Download payslip PDF",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "PDF file",
+            "content": { "application/pdf": { "schema": { "type": "string", "format": "binary" } } }
+          }
+        }
+      }
+    },
+    "/api/verify/{token}": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Verify payslip authenticity via QR token — no auth required",
+        "security": [],
+        "parameters": [{ "name": "token", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Verification result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": { "type": "boolean" },
+                    "payslip": {
+                      "type": "object",
+                      "properties": {
+                        "employeeName": { "type": "string" },
+                        "role": { "type": "string" },
+                        "companyName": { "type": "string" },
+                        "period": { "type": "string" },
+                        "payDate": { "type": "string", "format": "date-time" },
+                        "grossSalary": { "type": "number" },
+                        "netPay": { "type": "number" },
+                        "issuedAt": { "type": "string", "format": "date-time" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Token not found or invalid" }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Health check",
+        "security": [],
+        "responses": { "200": { "description": "Service status" } }
+      }
+    }
+  }
+}

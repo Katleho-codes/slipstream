@@ -1,0 +1,44 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: slipstream_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: slipstream
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: slipstream_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - slipstream_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U slipstream -d slipstream_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: slipstream_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '8003:8003'
+    environment:
+      DATABASE_URL: postgresql://slipstream:password@postgres:5432/slipstream_db
+      NODE_ENV: development
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - slipstream_pdfs:/app/storage/pdfs
+    command: npx ts-node-dev --respawn --transpile-only src/index.ts
+
+volumes:
+  slipstream_pgdata:
+  slipstream_pdfs:
