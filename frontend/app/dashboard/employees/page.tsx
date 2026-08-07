@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { employees as employeesApi, Employee, CreateEmployeeDto } from '@/lib/api';
+import { employees as employeesApi, Employee, CreateEmployeeDto, ApiError } from '@/lib/api';
 import { Topbar } from '@/components/layout/Topbar';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
@@ -22,7 +22,7 @@ export default function EmployeesPage() {
   const [form, setForm] = useState<CreateEmployeeDto>(empty);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
   useEffect(() => {
     employeesApi.list().then(setList).finally(() => setLoading(false));
   }, []);
@@ -35,11 +35,15 @@ export default function EmployeesPage() {
     setSaving(true);
     try {
       const emp = await employeesApi.create(form);
+      console.log("emp", emp)
       setList(l => [...l, emp]);
       setOpen(false);
       setForm(empty);
       toast(`${emp.firstName} ${emp.lastName} added`);
     } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        setErrors(err.errors ?? {});
+      }
       toast(err instanceof Error ? err.message : 'Failed to add employee', 'error');
     } finally {
       setSaving(false);
@@ -154,18 +158,50 @@ export default function EmployeesPage() {
       <Modal open={open} onClose={() => setOpen(false)} title="Add employee">
         <form onSubmit={handleCreate} className="flex flex-col gap-4" autoComplete="off">
           <div className="grid grid-cols-2 gap-3">
-            <Input label="First name" defaultValue={form.firstName} onChange={set('firstName')} aria-autocomplete="none" required />
-            <Input label="Last name" defaultValue={form.lastName} onChange={set('lastName')} autoComplete="off" required />
+            <div className="grid grid-cols-1 gap-2">
+              <Input label="First name" defaultValue={form.firstName} onChange={set('firstName')} aria-autocomplete="none" />
+              {errors.firstName && (
+                <p className="text-sm text-red-500 font-medium">
+                  {errors.firstName[0]}
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              <Input label="Last name" defaultValue={form.lastName} onChange={set('lastName')} autoComplete="off" />
+              {errors.lastName && (
+                <p className="text-sm text-red-500 font-medium">
+                  {errors.lastName[0]}
+                </p>
+              )}
+            </div>
           </div>
           <Input label="Email" type="email" defaultValue={form.email} onChange={set('email')} autoComplete="off" placeholder="employee@email.com" />
+          {errors.email && (
+            <p className="text-sm text-red-500 font-medium">
+              {errors.email[0]}
+            </p>
+          )}
           <Input label="Phone" defaultValue={form.phone} onChange={set('phone')} autoComplete="off" placeholder="071 000 0000" />
+          {errors.phone && (
+            <p className="text-sm text-red-500 font-medium">
+              {errors.phone[0]}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Input label="Role" defaultValue={form.role} onChange={set('role')} autoComplete="off" placeholder="Machine Operator" />
             <Input label="Department" defaultValue={form.department} onChange={set('department')} autoComplete="off" placeholder="Factory Floor" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Employee code" defaultValue={form.employeeCode} onChange={set('employeeCode')} autoComplete="off" placeholder="EMP001" />
+            <div className="grid grid-cols-1 gap-2">
+              <Input label="Employee code" defaultValue={form.employeeCode} onChange={set('employeeCode')} autoComplete="off" placeholder="EMP001" />
+              {errors.employeeCode && (
+                <p className="text-sm text-red-500 font-medium">
+                  {errors.employeeCode[0]}
+                </p>
+              )}
+            </div>
             <Input label="ID number" defaultValue={form.idNumber} onChange={set('idNumber')} autoComplete="off" placeholder="9001015009087" />
+
           </div>
           <Input label="Start date" type="date" defaultValue={form.startDate} onChange={set('startDate')} />
           <div className="flex justify-end gap-2 pt-2 border-t border-[#E2EDE5]">

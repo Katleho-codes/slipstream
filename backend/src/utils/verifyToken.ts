@@ -1,5 +1,5 @@
-import crypto from 'crypto';
-
+import crypto from "crypto";
+import "dotenv/config";
 const HMAC_SECRET = process.env.VERIFY_HMAC_SECRET!;
 
 /**
@@ -8,12 +8,15 @@ const HMAC_SECRET = process.env.VERIFY_HMAC_SECRET!;
  * Any change to the payslip data invalidates the token.
  */
 export function generateVerifyToken(params: {
-  payslipId: string;
-  employeeId: string;
-  issuedAt: Date;
+    payslipId: string;
+    employeeId: string;
+    issuedAt: Date;
 }): string {
-  const payload = `${params.payslipId}:${params.employeeId}:${params.issuedAt.toISOString()}`;
-  return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex');
+    const payload = `${params.payslipId}:${params.employeeId}:${params.issuedAt.toISOString()}`;
+    return crypto
+        .createHmac("sha256", HMAC_SECRET)
+        .update(payload)
+        .digest("hex");
 }
 
 /**
@@ -21,13 +24,16 @@ export function generateVerifyToken(params: {
  * Uses timingSafeEqual to prevent timing attacks.
  */
 export function verifyPayslipToken(
-  token: string,
-  params: { payslipId: string; employeeId: string; issuedAt: Date }
+    token: string,
+    params: { payslipId: string; employeeId: string; issuedAt: Date },
 ): boolean {
-  const expected = generateVerifyToken(params);
-  try {
-    return crypto.timingSafeEqual(Buffer.from(token, 'hex'), Buffer.from(expected, 'hex'));
-  } catch {
-    return false;
-  }
+    const expected = generateVerifyToken(params);
+    try {
+        return crypto.timingSafeEqual(
+            Buffer.from(token, "hex"),
+            Buffer.from(expected, "hex"),
+        );
+    } catch {
+        return false;
+    }
 }

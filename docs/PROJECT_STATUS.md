@@ -71,8 +71,8 @@ SlipStream is a multi-tenant digital payslip platform that enables employers to 
 
 ## Documents
 
-- [ ] PDF Generation
-- [ ] PDF Storage
+- [x] PDF Generation
+- [x] PDF Storage
 
 ---
 
@@ -131,10 +131,10 @@ SlipStream is a multi-tenant digital payslip platform that enables employers to 
 # Known Bugs
 
 | Priority | Description | Status |
-|----------|-------------|--------|
-| High | | |
-| Medium | | |
-| Low | | |
+| -------- | ----------- | ------ |
+| High     |             |        |
+| Medium   |             |        |
+| Low      |             |        |
 
 ---
 
@@ -237,3 +237,32 @@ Production
 - [ ] Performance review complete
 - [ ] Docker image built
 - [ ] Production deployment
+
+## Architecture Review (2026-08-05)
+
+### Strengths
+
+- Modular backend structure
+- Prisma ORM with normalized schema
+- Better Auth integration
+- Dockerized development environment
+- OpenAPI specification
+- Public payslip verification
+- Separation of controllers and services
+
+### Technical Debt
+
+- Monetary values use Float instead of Decimal
+- Missing audit log system
+- Missing role-based permissions within employers
+- No soft delete strategy
+- Local file storage only
+- Foreign-key indexes need review
+
+### Immediate Priorities
+
+1. Add automated tests
+2. Implement audit logging
+3. Review database indexes
+4. Introduce CI/CD
+5. Improve production readiness

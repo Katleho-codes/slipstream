@@ -1,26 +1,29 @@
-import { Resend } from 'resend';
-
+import { Resend } from "resend";
+import "dotenv/config";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM = `${process.env.RESEND_FROM_NAME} <${process.env.RESEND_FROM_EMAIL}>`;
 const VERIFY_BASE = process.env.VERIFY_BASE_URL;
 
 interface PayslipEmailParams {
-  to: string;
-  employeeName: string;
-  companyName: string;
-  periodLabel: string;
-  netPay: number;
-  verifyToken: string;
-  pdfUrl?: string;
+    to: string;
+    employeeName: string;
+    companyName: string;
+    periodLabel: string;
+    netPay: number;
+    verifyToken: string;
+    pdfUrl?: string;
 }
 
-export async function sendPayslipEmail(params: PayslipEmailParams): Promise<boolean> {
-  const { to, employeeName, companyName, periodLabel, netPay, verifyToken } = params;
-  const verifyUrl = `${VERIFY_BASE}/${verifyToken}`;
-  const netFormatted = `R ${netPay.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`;
+export async function sendPayslipEmail(
+    params: PayslipEmailParams,
+): Promise<boolean> {
+    const { to, employeeName, companyName, periodLabel, netPay, verifyToken } =
+        params;
+    const verifyUrl = `${VERIFY_BASE}/${verifyToken}`;
+    const netFormatted = `R ${netPay.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`;
 
-  const html = `
+    const html = `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -77,22 +80,22 @@ export async function sendPayslipEmail(params: PayslipEmailParams): Promise<bool
 </body>
 </html>`;
 
-  try {
-    const { error } = await resend.emails.send({
-      from: FROM,
-      to,
-      subject: `Your ${periodLabel} payslip from ${companyName}`,
-      html,
-    });
+    try {
+        const { error } = await resend.emails.send({
+            from: FROM,
+            to,
+            subject: `Your ${periodLabel} payslip from ${companyName}`,
+            html,
+        });
 
-    if (error) {
-      console.error('[sendPayslipEmail] Resend error:', error);
-      return false;
+        if (error) {
+            console.error("[sendPayslipEmail] Resend error:", error);
+            return false;
+        }
+
+        return true;
+    } catch (err) {
+        console.error("[sendPayslipEmail] Unexpected error:", err);
+        return false;
     }
-
-    return true;
-  } catch (err) {
-    console.error('[sendPayslipEmail] Unexpected error:', err);
-    return false;
-  }
 }

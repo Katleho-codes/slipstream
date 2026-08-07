@@ -1,0 +1,71 @@
+services:
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - public
+    depends_on:
+      - api
+      - frontend
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    networks:
+      - public
+    depends_on:
+      - api
+    # No "ports:" here — only the proxy is published to the host.
+
+  api:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # add any other backend secrets here (BETTER_AUTH_SECRET, RESEND_API_KEY, etc.)
+    networks:
+      - public # so `frontend`/`proxy` can reach it by service name
+      - db-internal # so it can reach `db`
+    depends_on:
+      db:
+        condition: service_healthy
+    # No "ports:" — unreachable from outside the Docker host entirely.
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - db-internal # only reachable by `api`, never by `frontend`/`proxy`
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # No "ports:" — not reachable from the host or the public network at all.
+
+networks:
+  public: # proxy <-> frontend <-> api
+  db-internal: # api <-> db only
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

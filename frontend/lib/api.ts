@@ -4,60 +4,86 @@
  * Credentials: 'include' is required — Better Auth uses cookies.
  */
 
+import axios from "axios";
+
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8003";
 
-class ApiError extends Error {
+export class ApiError extends Error {
     constructor(
         public status: number,
-        message: string,
+        public errors?: Record<string, string[]>,
+        message = "Request failed",
     ) {
         super(message);
         this.name = "ApiError";
     }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(`${BASE}${path}`, {
-        ...init,
-        credentials: "include",
-        headers: { "Content-Type": "application/json", ...init?.headers },
-    });
+const api = axios.create({
+    baseURL: BASE,
+    timeout: 10000,
+    withCredentials: true,
+    headers: {
+        "Content-Type": "application/json",
+    },
+});
 
-    const json = await res.json();
+async function request<T>(
+    config: Parameters<typeof api.request>[0],
+): Promise<T> {
+    try {
+        const { data } = await api.request(config);
 
-    if (!res.ok) {
-        if (process.env.NODE_ENV === "development")
-            throw new ApiError(res.status, json.message ?? "Request failed");
+        return data.data ?? data;
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            const res = error.response;
+            console.log("error axios", error);
+            throw new ApiError(
+                res?.status ?? 500,
+                res?.data?.errors,
+                res?.data?.message ?? error.message,
+            );
+        }
+
+        throw error;
     }
-
-    return json.data ?? json;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const auth = {
     signUp: (body: { name: string; email: string; password: string }) =>
-        request("/api/auth/sign-up/email", {
+        request({
+            url: "/api/auth/sign-up/email",
             method: "POST",
-            body: JSON.stringify(body),
+            data: body,
         }),
 
     signIn: (body: { email: string; password: string }) =>
-        request("/api/auth/sign-in/email", {
+        request({
+            url: "/api/auth/sign-in/email",
             method: "POST",
-            body: JSON.stringify(body),
+            data: body,
         }),
 
-    signOut: () => request("/api/auth/sign-out", { method: "POST" }),
+    signOut: () =>
+        request({
+            url: "/api/auth/sign-out",
+            method: "POST",
+        }),
 
     session: () =>
-        request<{ user: { id: string; email: string; name: string } } | null>(
-            "/api/auth/get-session",
-        ),
+        request<{ user: { id: string; email: string; name: string } | null }>({
+            url: "/api/auth/get-session",
+        }),
 };
 
 // ─── Employer ─────────────────────────────────────────────────────────────────
 export const employer = {
-    me: () => request<Employer>("/api/employer/me"),
+    me: () =>
+        request<Employer>({
+            url: "/api/employer/me",
+        }),
 
     updateProfile: (
         body: Partial<
@@ -67,73 +93,91 @@ export const employer = {
             >
         >,
     ) =>
-        request<Employer>("/api/employer/profile", {
+        request<Employer>({
+            url: "/api/employer/profile",
             method: "PATCH",
-            body: JSON.stringify(body),
+            data: body,
         }),
 };
 
 // ─── Employees ────────────────────────────────────────────────────────────────
 export const employees = {
     list: (active?: boolean) =>
-        request<Employee[]>(
-            `/api/employees${active !== undefined ? `?active=${active}` : ""}`,
-        ),
+        request<Employee[]>({
+            url: "/api/employees",
+            params: active !== undefined ? { active } : undefined,
+        }),
 
-    get: (id: string) => request<Employee>(`/api/employees/${id}`),
+    get: (id: string) =>
+        request<Employee>({
+            url: `/api/employees/${id}`,
+        }),
 
     create: (body: CreateEmployeeDto) =>
-        request<Employee>("/api/employees", {
+        request<Employee>({
+            url: "/api/employees",
             method: "POST",
-            body: JSON.stringify(body),
+            data: body,
         }),
 
     update: (id: string, body: Partial<CreateEmployeeDto>) =>
-        request<Employee>(`/api/employees/${id}`, {
+        request<Employee>({
+            url: `/api/employees/${id}`,
             method: "PATCH",
-            body: JSON.stringify(body),
+            data: body,
         }),
 
     deactivate: (id: string) =>
-        request(`/api/employees/${id}`, { method: "DELETE" }),
+        request({
+            url: `/api/employees/${id}`,
+            method: "DELETE",
+        }),
 };
 
 // ─── Pay Periods ──────────────────────────────────────────────────────────────
 export const payPeriods = {
-    list: () => request<PayPeriod[]>("/api/pay-periods"),
-
-    create: (body: CreatePayPeriodDto) =>
-        request<PayPeriod>("/api/pay-periods", {
-            method: "POST",
-            body: JSON.stringify(body),
+    list: () =>
+        request<PayPeriod[]>({
+            url: "/api/pay-periods",
         }),
-
+    create: (body: CreatePayPeriodDto) =>
+        request<PayPeriod>({
+            url: "/api/pay-periods",
+            method: "POST",
+            data: body,
+        }),
     delete: (id: string) =>
-        request(`/api/pay-periods/${id}`, { method: "DELETE" }),
+        request({
+            url: `/api/pay-periods/${id}`,
+            method: "DELETE",
+        }),
 };
 
 // ─── Payslips ─────────────────────────────────────────────────────────────────
 export const payslips = {
-    list: (params?: { periodId?: string; employeeId?: string }) => {
-        const qs = new URLSearchParams(
-            params as Record<string, string>,
-        ).toString();
-        return request<Payslip[]>(`/api/payslips${qs ? `?${qs}` : ""}`);
-    },
+    list: (params?: { periodId?: string; employeeId?: string }) =>
+        request<Payslip[]>({
+            url: "/api/payslips",
+            params,
+        }),
 
-    get: (id: string) => request<Payslip>(`/api/payslips/${id}`),
+    get: (id: string) =>
+        request<Payslip>({
+            url: `/api/payslips/${id}`,
+        }),
 
     create: (body: CreatePayslipDto) =>
-        request<Payslip>("/api/payslips", {
+        request<Payslip>({
+            url: "/api/payslips",
             method: "POST",
-            body: JSON.stringify(body),
+            data: body,
         }),
 
     issue: (id: string) =>
-        request<{ payslipId: string; pdf: boolean; email: boolean }>(
-            `/api/payslips/${id}/issue`,
-            { method: "POST" },
-        ),
+        request<{ payslipId: string; pdf: boolean; email: boolean }>({
+            url: `/api/payslips/${id}/issue`,
+            method: "POST",
+        }),
 
     pdfUrl: (id: string) => `${BASE}/api/payslips/${id}/pdf`,
 };
