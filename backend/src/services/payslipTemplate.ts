@@ -1,5 +1,5 @@
 import { PayslipWithRelations } from '../types';
-
+import "dotenv/config";
 export function generatePayslipHTML(payslip: PayslipWithRelations): string {
   const { employee, period, deductions } = payslip;
   const fmt = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
