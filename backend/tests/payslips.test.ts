@@ -152,25 +152,3 @@ describe("POST /api/payslips/:id/issue", () => {
         "prevents (or intentionally allows) re-issuing an already-issued payslip",
     );
 });
-
-// describe("GET /api/payslips/:id/pdf", () => {
-//     it("streams a PDF for an existing payslip", async () => {
-//         prismaMock.payslip.findFirst.mockResolvedValue(fixturePayslip);
-
-//         const res = await request(app).get(
-//             `/api/payslips/${fixturePayslip.id}/pdf`,
-//         );
-
-//         expect(res.status).toBe(200);
-//         expect(res.headers["content-type"]).toMatch(/pdf/);
-//         expect(res.headers["content-disposition"]).toContain("attachment");
-//     });
-
-//     it("returns 404 for a PDF of a payslip that doesn't exist", async () => {
-//         prismaMock.payslip.findFirst.mockResolvedValue(null);
-
-//         const res = await request(app).get("/api/payslips/does-not-exist/pdf");
-
-//         expect(res.status).toBe(404);
-//     });
-// });
