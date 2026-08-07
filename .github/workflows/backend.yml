@@ -1,7 +1,9 @@
 name: Backend CI/CD
 on:
     push:
-        paths: ["backend/**"] # Only triggers on changes to backend/
+        paths:
+            - "backend/**"
+            - ".github/workflows/backend.yml"
 jobs:
     test:
         runs-on: ubuntu-latest
