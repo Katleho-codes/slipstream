@@ -58,7 +58,7 @@ vi.mock("../src/utils/prisma", () => ({
 // real; mock them so tests don't launch Puppeteer or hit Resend's API. ───────
 vi.mock("../src/services/pdf.service", () => ({
     generatePayslipPDF: vi.fn().mockResolvedValue(undefined),
-    getPayslipPDFPath: vi.fn((id: string) => `/storage/pdfs/payslip_${id}.pdf`),
+    getPayslipPDFPath: vi.fn((id: string) => `/tmp/payslip_${id}.pdf`),
     payslipPDFExists: vi.fn().mockReturnValue(true),
 }));
 
@@ -66,14 +66,20 @@ vi.mock("../src/services/email.service", () => ({
     sendPayslipEmail: vi.fn().mockResolvedValue(true),
 }));
 
-// ─── fs — downloadPayslipPDF streams a real file off disk via
-// fs.createReadStream(...).pipe(res); give it a fake in-memory stream. ───────
+// ─── fs — downloadPayslipPDF uses `import fs from 'fs'` (a DEFAULT import),
+// so the override must also live under `default`, not just as a named
+// export, or the default import falls through to the real fs module. ───────
 vi.mock("fs", async (importOriginal) => {
     const actual = await importOriginal<typeof import("fs")>();
+    const mockCreateReadStream = vi.fn(() =>
+        Readable.from([Buffer.from("%PDF-fake-content")]),
+    );
     return {
         ...actual,
-        createReadStream: vi.fn(() =>
-            Readable.from([Buffer.from("%PDF-fake-content")]),
-        ),
+        createReadStream: mockCreateReadStream,
+        default: {
+            ...actual,
+            createReadStream: mockCreateReadStream,
+        },
     };
 });
