@@ -11,6 +11,7 @@ export const fixtureAuthEmployer = {
     email: "admin@slipstream.com",
     companyName: "Acme Payroll (Pty) Ltd",
     plan: "STARTER", // PLAN_LIMITS.STARTER = 10
+    role: "OWNER", // matches OrgMember.role attached by requireAuth
 };
 
 // Full Employer DB record (for prisma.employer.* mocks — includes fields

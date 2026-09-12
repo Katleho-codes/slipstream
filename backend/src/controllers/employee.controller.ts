@@ -9,6 +9,7 @@ import {
     sendNotFound,
     sendServerError,
 } from "../utils/response";
+import { audit } from "../utils/audit";
 
 export const CreateEmployeeSchema = z.object({
     firstName: z.string().min(3, "First name required"),
@@ -106,6 +107,9 @@ export async function createEmployee(
     req: AuthRequest,
     res: Response,
 ): Promise<void> {
+    // Hoist so both try and catch can reference it
+    let createdEmployeeId: string | undefined;
+
     try {
         const employerId = req.employer!.id;
         const plan = req.employer!.plan;
@@ -123,22 +127,6 @@ export async function createEmployee(
             return;
         }
 
-        // if (req.body.email) {
-        //     const existing = await prisma.employee.findFirst({
-        //         where: {
-        //             employerId,
-        //             email: req.body.email,
-        //         },
-        //     });
-        //     if (existing) {
-        //         sendError(
-        //             res,
-        //             "An employee with this email already exists",
-        //             409,
-        //         );
-        //         return;
-        //     }
-        // }
         if (req.body.email || req.body.employeeCode) {
             const existing = await prisma.employee.findFirst({
                 where: {
@@ -161,7 +149,6 @@ export async function createEmployee(
                     );
                     return;
                 }
-
                 if (
                     req.body.employeeCode &&
                     existing.employeeCode === req.body.employeeCode
@@ -175,6 +162,7 @@ export async function createEmployee(
                 }
             }
         }
+
         const employee = await prisma.employee.create({
             data: {
                 ...req.body,
@@ -183,12 +171,41 @@ export async function createEmployee(
                     ? new Date(req.body.startDate)
                     : undefined,
             },
+            select: { id: true },
         });
-        console.log("res employee", res);
+
+        createdEmployeeId = employee.id;
+
+        await audit({
+            performedByUserId: req.employer?.userId,
+            employerId: req.employer?.id,
+            action: "EMPLOYEE_CREATED",
+            resourceType: "Employee",
+            resourceId: employee.id,
+            status: "SUCCESS",
+            details: req.body,
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"] as string,
+        });
+
         sendCreated(res, employee, "Employee created");
     } catch (err) {
-        console.log("[createEmployee]", err);
-        console.log("error employee res error", JSON.stringify(res));
+        console.error("[createEmployee]", err);
+
+        // resourceId is undefined here if the create itself failed — that's correct.
+        // We still log the attempt with whatever context we have.
+        await audit({
+            performedByUserId: req.employer?.userId,
+            employerId: req.employer?.id,
+            action: "EMPLOYEE_CREATED",
+            resourceType: "Employee",
+            resourceId: createdEmployeeId, // undefined if create failed
+            status: "FAILED",
+            details: { body: req.body, error: (err as Error).message },
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"] as string,
+        });
+
         sendServerError(res);
     }
 }
@@ -197,6 +214,8 @@ export async function updateEmployee(
     req: AuthRequest,
     res: Response,
 ): Promise<void> {
+    // Hoist so both try and catch can reference it
+    // let updatedEmployeeId: string | undefined;
     try {
         const existing = await prisma.employee.findFirst({
             where: { id: req.params.id, employerId: req.employer!.id },
@@ -215,9 +234,31 @@ export async function updateEmployee(
                     : undefined,
             },
         });
+        await audit({
+            performedByUserId: req.employer?.userId,
+            employerId: req.employer?.id,
+            action: "EMPLOYEE_UPDATED",
+            resourceType: "Employee",
+            resourceId: req.params.id, // undefined if create failed
+            status: "SUCCESS",
+            details: req.body,
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"] as string,
+        });
         sendSuccess(res, employee, "Employee updated");
     } catch (err) {
         console.error("[updateEmployee]", err);
+        await audit({
+            performedByUserId: req.employer?.userId,
+            employerId: req.employer?.id,
+            action: "EMPLOYEE_UPDATED",
+            resourceType: "Employee",
+            resourceId: req.params.id, // undefined if create failed
+            status: "FAILED",
+            details: { body: req.body, error: (err as Error).message },
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"] as string,
+        });
         sendServerError(res);
     }
 }

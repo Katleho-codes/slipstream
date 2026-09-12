@@ -1,12 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { payslips as payslipsApi, payPeriods as periodsApi, employees as employeesApi, employer as employerApi } from '@/lib/api';
-import type { Payslip, PayPeriod, Employee, Employer } from '@/lib/api';
+import type { Payslip, PayPeriod, Employer } from '@/lib/api';
 import { Topbar } from '@/components/layout/Topbar';
 import { StatCard } from '@/components/ui/StatCard';
 import { Button } from '@/components/ui/Button';
 import { Chip, emailStatusChip } from '@/components/ui/Chip';
-import { fmtCurrency, fmtDate, fmtDateShort, PLAN_LIMITS, PLAN_PRICE } from '@/lib/utils';
+import { fmtCurrency, fmtDateShort, PLAN_LIMITS, PLAN_PRICE } from '@/lib/utils';
 import Link from 'next/link';
 
 export default function DashboardPage() {

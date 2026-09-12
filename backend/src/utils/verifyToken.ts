@@ -12,7 +12,9 @@ export function generateVerifyToken(params: {
     employeeId: string;
     issuedAt: Date;
 }): string {
-    const payload = `${params.payslipId}:${params.employeeId}:${params.issuedAt.toISOString()}`;
+    const payload = `${params.payslipId}:${params.employeeId}:${new Date(
+        params.issuedAt,
+    ).toISOString()}`;
     return crypto
         .createHmac("sha256", HMAC_SECRET)
         .update(payload)

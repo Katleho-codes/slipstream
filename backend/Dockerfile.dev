@@ -1,0 +1,26 @@
+# Local development image — keeps devDependencies and runs ts-node-dev with
+# a mounted source volume (see backend/docker-compose.yml), so changes take
+# effect without rebuilding. Chromium is installed for Puppeteer PDFs.
+FROM node:20-alpine
+WORKDIR /app
+
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+ENV NODE_ENV=development \
+    PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
+COPY package*.json ./
+COPY prisma ./prisma
+RUN npm ci
+
+COPY . .
+
+CMD ["npx", "ts-node-dev", "--respawn", "--transpile-only", "src/index.ts"]

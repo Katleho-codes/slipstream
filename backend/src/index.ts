@@ -22,6 +22,10 @@ app.use(
     }),
 );
 
+// 1. Enable proxy trust (Crucial for production environments)
+// Options: true, 1 (trust 1 hop), 'loopback', or specific IP subnets
+app.set("trust proxy", 1);
+
 // ─── Rate limiting ────────────────────────────────────────────────────────────
 app.use(
     rateLimit({
@@ -41,6 +45,10 @@ app.use(express.urlencoded({ extended: true }));
 // ─── Better Auth handler ──────────────────────────────────────────────────────
 // Mounts: /api/auth/sign-in, /api/auth/sign-up, /api/auth/sign-out,
 //         /api/auth/session, /api/auth/callback, etc.
+// todo: remove in prod
+app.get("/ip", (request, response) => {
+    response.send(request.ip);
+});
 app.all("/api/auth/*", toNodeHandler(auth));
 
 // ─── API Documentation (Scalar) ───────────────────────────────────────────────
@@ -48,6 +56,7 @@ app.get("/openapi.json", (_req, res) => {
     res.json(openapiSpec);
 });
 
+// todo: remove in prod
 app.use(
     "/reference",
     helmet({
@@ -68,6 +77,7 @@ app.use(
     }),
     apiReference({ theme: "purple", url: "/openapi.json" }),
 );
+
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
     res.json({
@@ -101,15 +111,14 @@ app.use(
         });
     },
 );
-
 // ─── Start ────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
     console.log(`\n🚀 SlipStream API running on port ${PORT}`);
-    console.log(
-        `   Auth:   http://localhost:${PORT}/api/auth/sign-up  (Better Auth)`,
-    );
-    console.log(`   Health: http://localhost:${PORT}/health`);
-    console.log(`   Verify: http://localhost:${PORT}/api/verify/:token\n`);
+    // console.log(
+    //     `   Auth:   http://localhost:${PORT}/api/auth/sign-up  (Better Auth)`,
+    // );
+    // console.log(`   Health: http://localhost:${PORT}/health`);
+    // console.log(`   Verify: http://localhost:${PORT}/api/verify/:token\n`);
 });
 
 export default app;

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { employer as employerApi, Employer } from '@/lib/api';
+import { employer as employerApi, Employer, onboarding } from '@/lib/api';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { ToastProvider } from '@/components/ui/Toast';
 
@@ -11,9 +11,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    employerApi.me()
-      .then(setEmployer)
-      .catch(() => router.push('/login'))
+    onboarding.status()
+      .then(status => {
+        if (status.step !== 'complete') {
+          router.replace('/onboarding');
+          return;
+        }
+        return employerApi.me().then(setEmployer);
+      })
+      .catch(() => router.replace('/login'))
       .finally(() => setReady(true));
   }, [router]);
 

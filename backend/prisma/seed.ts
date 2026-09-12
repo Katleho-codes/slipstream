@@ -1,12 +1,13 @@
 import { PrismaClient } from '@prisma/client';
 import { auth } from '../src/lib/auth';
+import { generateVerifyToken } from '../src/utils/verifyToken';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Seeding SlipStream dev database...\n');
 
-  // Create user + employer via Better Auth
+  // Create the admin user via Better Auth
   const { user } = await auth.api.signUpEmail({
     body: {
       name: 'Prestige Clothing',
@@ -16,15 +17,24 @@ async function main() {
   });
   console.log(`✅ User: ${user.email}`);
 
-  // Better Auth's onUserCreate already created the Employer row.
-  // Now update it with full company details.
-  const employer = await prisma.employer.update({
-    where: { userId: user.id },
+  // Mirror the onboarding flow (src/controllers/onboarding.controller.ts):
+  // create the Employer row AND an OWNER membership, marked complete so the
+  // dashboard loads straight away. Better Auth does NOT auto-create these.
+  const employer = await prisma.employer.create({
     data: {
+      userId: user.id,
       companyName: 'Prestige Clothing (Pty) Ltd',
       regNumber: '2019/123456/07',
       phone: '011 555 1234',
       address: '14 Industry Road, Germiston, 1401',
+      onboardingComplete: true,
+    },
+  });
+  await prisma.orgMember.create({
+    data: {
+      employerId: employer.id,
+      userId: user.id,
+      role: 'OWNER',
     },
   });
   console.log(`✅ Employer: ${employer.companyName}`);
@@ -66,14 +76,24 @@ async function main() {
   });
   console.log(`✅ Pay period: ${period.label}`);
 
-  // Seed payslip
-  await prisma.payslip.create({
+  // Seed payslip — insert first (Prisma generates the id), then bind a real
+  // HMAC verify token so the public verify endpoint accepts it.
+  const payslip = await prisma.payslip.create({
     data: {
       employeeId: thabo.id, periodId: period.id,
-      grossSalary: 8500, paye: 1190, uif: 85, netPay: 6480,
-      verifyToken: 'dev-verify-token-thabo-march-2026',
+      // net pay: 8500 − 1190 (PAYE) − 85 (UIF) − 745 (Medical aid) = 6480
+      grossSalary: 8500, paye: 1190, uif: 85, sdl: 0, netPay: 6480,
       deductions: { create: [{ label: 'Medical aid', amount: 745 }] },
     },
+  });
+  const verifyToken = generateVerifyToken({
+    payslipId: payslip.id,
+    employeeId: thabo.id,
+    issuedAt: payslip.issuedAt,
+  });
+  await prisma.payslip.update({
+    where: { id: payslip.id },
+    data: { verifyToken },
   });
   console.log(`✅ Payslip: Thabo Mokoena — R6,480 net`);
 

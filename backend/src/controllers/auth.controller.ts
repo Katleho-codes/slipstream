@@ -38,7 +38,12 @@ export async function me(req: AuthRequest, res: Response): Promise<void> {
                 plan: true,
                 createdAt: true,
                 user: {
-                    select: { email: true, name: true, emailVerified: true },
+                    select: {
+                        id: true,
+                        email: true,
+                        name: true,
+                        emailVerified: true,
+                    },
                 },
                 _count: {
                     select: { employees: { where: { isActive: true } } },

@@ -4,12 +4,19 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
     test: {
         globals: true,
-        fileParallelism: false, // Prevents multiple test files from conflicting in the DB
-        clearMocks: true, // resets vi.fn() call history/return values between tests
-        setupFiles: ["./tests/setup.ts"],
         environment: "node",
+        setupFiles: ["./tests/setup.ts"],
+        testTimeout: 15000,
+        sequence: { concurrent: false },
         coverage: {
-            reporter: ["text", "html"],
+            provider: "v8",
+            reporter: ["text", "json-summary"],
+            include: [
+                "src/controllers/**",
+                "src/utils/**",
+                "src/middleware/**",
+            ],
+            exclude: ["src/tests/**", "src/services/pdf.service.ts"],
         },
     },
 });

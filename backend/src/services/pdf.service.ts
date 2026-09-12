@@ -1,9 +1,18 @@
 import fs from "fs";
 import path from "path";
+import QRCode from "qrcode";
 import { generatePayslipHTML } from "./payslipTemplate";
 import { PayslipWithRelations } from "../types";
 import "dotenv/config";
 const STORAGE_PATH = process.env.PDF_STORAGE_PATH ?? "./storage/pdfs";
+
+async function generatePayslipQR(verifyUrl: string): Promise<string> {
+    return QRCode.toDataURL(verifyUrl, {
+        errorCorrectionLevel: "M",
+        margin: 1,
+        width: 160,
+    });
+}
 
 export async function generatePayslipPDF(
     payslip: PayslipWithRelations,
@@ -12,7 +21,9 @@ export async function generatePayslipPDF(
         fs.mkdirSync(STORAGE_PATH, { recursive: true });
     }
 
-    const html = generatePayslipHTML(payslip);
+    const verifyUrl = `${process.env.VERIFY_BASE_URL}/${payslip.verifyToken}`;
+    const qrDataUri = await generatePayslipQR(verifyUrl);
+    const html = generatePayslipHTML(payslip, { qrDataUri });
     const filename = `payslip_${payslip.id}.pdf`;
     const outputPath = path.join(STORAGE_PATH, filename);
 

@@ -1,6 +1,6 @@
 # SlipStream - Project Status
 
-> Last Updated: 2026-08-04
+> Last Updated: 2026-09-12
 > Status: 🟡 Active Development
 > Version: v0.1.0
 
@@ -46,21 +46,23 @@ SlipStream is a multi-tenant digital payslip platform that enables employers to 
 
 ## Authentication
 
-- [ ] User Registration
-- [ ] User Login
-- [ ] Session Management
-- [ ] Logout
-- [ ] Password Reset
-- [ ] Role Based Access Control
+- [x] User Registration
+- [x] User Login
+- [x] Session Management
+- [x] Logout
+- [x] Password Reset
+- [x] Role Based Access Control
 
 ## Employer
 
-- [ ] Company Registration
-- [ ] Employer Profile
-- [ ] Employee Management
+- [x] Company Registration
+- [x] Employer Profile
+- [x] Employee Management
 - [ ] Upload Payslip
-- [ ] Generate Payslip
-- [ ] Payslip History
+- [x] Generate Payslip
+- [x] Payslip History
+- [x] Pay period
+- [x] Manage company members
 
 ## Employee
 
@@ -76,26 +78,20 @@ SlipStream is a multi-tenant digital payslip platform that enables employers to 
 
 ---
 
-# In Progress
-
-- [ ]
-
----
-
 # Planned Features
 
 ## Core
 
-- [ ] Multi-tenancy
-- [ ] Company Invitations
+- [x] Multi-tenancy (employer-scoped data)
+- [x] Company Invitations
 - [ ] Employee Invitations
 
 ## Security
 
-- [ ] Audit Logs
-- [ ] Rate Limiting
+- [x] Audit Logs
+- [x] Rate Limiting
 - [ ] Account Lockout
-- [ ] Email Verification
+- [x] Email Verification
 - [ ] File Validation
 
 ## Sharing
@@ -107,24 +103,18 @@ SlipStream is a multi-tenant digital payslip platform that enables employers to 
 
 ## Verification
 
-- [ ] QR Code Verification
-- [ ] Public Verification Portal
+- [x] QR Code Verification
+- [x] Public Verification Portal
 
 ## Notifications
 
-- [ ] Email Notifications
+- [x] Email Notifications
 
 ## Admin
 
 - [ ] Platform Admin Dashboard
 - [ ] User Management
 - [ ] Company Management
-
----
-
-# Technical Debt
-
-- [ ]
 
 ---
 
@@ -166,13 +156,13 @@ SlipStream is a multi-tenant digital payslip platform that enables employers to 
 
 Coverage:
 
-0%
+- Backend: 66 tests passing across 6 files (Vitest)
 
 ## Integration Tests
 
 Coverage:
 
-0%
+- Via Vitest mock-backed request tests in `backend/tests/`
 
 ## End-to-End Tests
 
@@ -185,7 +175,8 @@ Coverage:
 # DevOps
 
 - [ ] CI/CD Pipeline
-- [ ] Docker Production Image
+- [x] Docker Development Image
+- [x] Docker Production Image
 - [ ] Health Checks
 - [ ] Logging
 - [ ] Monitoring
@@ -253,16 +244,15 @@ Production
 ### Technical Debt
 
 - Monetary values use Float instead of Decimal
-- Missing audit log system
-- Missing role-based permissions within employers
+- Audit log action/resource-type columns are plain strings (no DB-level enum constraint)
 - No soft delete strategy
 - Local file storage only
 - Foreign-key indexes need review
 
 ### Immediate Priorities
 
-1. Add automated tests
-2. Implement audit logging
-3. Review database indexes
-4. Introduce CI/CD
-5. Improve production readiness
+1. Add automated tests (partially done — see Testing)
+2. Review database indexes
+3. Introduce CI/CD
+4. Improve production readiness
+5. Employee self-service dashboard (view/download payslips)

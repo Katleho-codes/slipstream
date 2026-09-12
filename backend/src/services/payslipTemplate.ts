@@ -1,6 +1,9 @@
 import { PayslipWithRelations } from '../types';
 import "dotenv/config";
-export function generatePayslipHTML(payslip: PayslipWithRelations): string {
+export function generatePayslipHTML(
+  payslip: PayslipWithRelations,
+  opts?: { qrDataUri?: string },
+): string {
   const { employee, period, deductions } = payslip;
   const fmt = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fmtDate = (d: Date) => new Date(d).toLocaleDateString('en-ZA', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -10,6 +13,7 @@ export function generatePayslipHTML(payslip: PayslipWithRelations): string {
   const totalDeductions = payslip.paye + payslip.uif + payslip.sdl + customDeductionsTotal;
 
   const verifyUrl = `${process.env.VERIFY_BASE_URL}/${payslip.verifyToken}`;
+  const qrDataUri = opts?.qrDataUri;
 
   return `
 <!DOCTYPE html>
@@ -44,6 +48,7 @@ export function generatePayslipHTML(payslip: PayslipWithRelations): string {
   .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e5e5; display: flex; justify-content: space-between; align-items: center; }
   .verify-text { font-size: 10px; color: #666; }
   .verify-url { font-size: 10px; color: #0F6E56; }
+  .footer-qr { width: 64px; height: 64px; margin-bottom: 6px; }
   .watermark { font-size: 9px; color: #bbb; text-align: right; }
 </style>
 </head>
@@ -117,7 +122,8 @@ export function generatePayslipHTML(payslip: PayslipWithRelations): string {
 
   <div class="footer">
     <div>
-      <div class="verify-text">Verify authenticity of this payslip:</div>
+      <div class="verify-text">Scan or follow the link to verify authenticity:</div>
+      ${qrDataUri ? `<img class="footer-qr" src="${qrDataUri}" alt="Payslip verification QR code" />` : ''}
       <div class="verify-url">${verifyUrl}</div>
     </div>
     <div class="watermark">

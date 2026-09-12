@@ -10,12 +10,6 @@ interface StatCardProps {
   children?: ReactNode;
 }
 
-const ledgerColor = {
-  default: 'ledger',
-  warn: 'ledger-amber',
-  muted: 'ledger-muted',
-};
-
 export function StatCard({ label, value, sub, variant = 'default', className, children }: StatCardProps) {
   return (
     <div className={cx(

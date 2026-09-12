@@ -11,7 +11,6 @@ const protectedRoutes: Array<{
 }> = [
     { method: "get", path: "/api/employer/me" },
     { method: "patch", path: "/api/employer/profile" },
-    { method: "post", path: "/api/employer" },
     { method: "get", path: "/api/employees" },
     { method: "get", path: "/api/employees/employee_1" },
     { method: "post", path: "/api/employees" },
@@ -25,8 +24,13 @@ const protectedRoutes: Array<{
     { method: "post", path: "/api/payslips" },
     { method: "post", path: "/api/payslips/payslip_1/issue" },
     { method: "get", path: "/api/payslips/payslip_1/pdf" },
+    { method: "get", path: "/api/members" },
+    { method: "post", path: "/api/members/invite" },
+    { method: "get", path: "/api/members/invites" },
+    { method: "delete", path: "/api/members/invites/invite_1" },
+    { method: "patch", path: "/api/members/user_1/role" },
+    { method: "delete", path: "/api/members/user_1" },
 ];
-
 describe("auth guard", () => {
     beforeEach(() => {
         authState.employer = null;
@@ -42,6 +46,11 @@ describe("auth guard", () => {
 
     it("does NOT require auth for /api/verify/:token", async () => {
         const res = await request(app).get("/api/verify/some-token");
+        expect(res.status).not.toBe(401);
+    });
+
+    it("does NOT require auth for /api/invites/:token", async () => {
+        const res = await request(app).get("/api/invites/some-token");
         expect(res.status).not.toBe(401);
     });
 });

@@ -7,7 +7,7 @@
 import axios from "axios";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8003";
-
+export type OrgRole = "OWNER" | "ADMIN" | "STAFF";
 export class ApiError extends Error {
     constructor(
         public status: number,
@@ -34,11 +34,10 @@ async function request<T>(
     try {
         const { data } = await api.request(config);
 
-        return data.data ?? data;
+        return data?.data ?? data;
     } catch (error) {
         if (axios.isAxiosError(error)) {
             const res = error.response;
-            console.log("error axios", error);
             throw new ApiError(
                 res?.status ?? 500,
                 res?.data?.errors,
@@ -73,10 +72,153 @@ export const auth = {
         }),
 
     session: () =>
-        request<{ user: { id: string; email: string; name: string } | null }>({
+        request<{
+            user: {
+                id: string;
+                email: string;
+                name: string;
+                emailVerified: boolean;
+            } | null;
+        }>({
             url: "/api/auth/get-session",
         }),
+
+    requestPasswordReset: (body: { email: string }) =>
+        request({
+            url: "/api/auth/request-password-reset",
+            method: "POST",
+            data: body,
+        }),
+
+    resetPassword: (body: { newPassword: string; token: string }) =>
+        request({
+            url: "/api/auth/reset-password",
+            method: "POST",
+            data: body,
+        }),
+
+    sendVerificationEmail: (body: {
+        email: string;
+        callbackURL: string;
+    }) =>
+        request({
+            url: "/api/auth/send-verification-email",
+            method: "POST",
+            data: body,
+        }),
 };
+
+// ─── Members ──────────────────────────────────────────────────────────────────
+
+export interface OrgMember {
+    id: string;
+    userId: string;
+    employerId: string;
+    role: OrgRole;
+    joinedAt: string;
+    user: {
+        id: string;
+        name: string;
+        email: string;
+        image: string | null;
+    };
+}
+
+export interface OrgInvite {
+    id: string;
+    email: string;
+    role: OrgRole;
+    expiresAt: string;
+    createdAt?: string;
+}
+
+export const members = {
+    list: () => request<OrgMember[]>({ url: "/api/members" }),
+
+    invite: (body: { email: string; role: "ADMIN" | "STAFF" }) =>
+        request<{
+            id: string;
+            email: string;
+            role: OrgRole;
+            expiresAt: string;
+        }>({
+            url: "/api/members/invite",
+            method: "POST",
+            data: body,
+        }),
+
+    listInvites: () => request<OrgInvite[]>({ url: "/api/members/invites" }),
+
+    revokeInvite: (id: string) =>
+        request({ url: `/api/members/invites/${id}`, method: "DELETE" }),
+
+    updateRole: (userId: string, role: "ADMIN" | "STAFF") =>
+        request<OrgMember>({
+            url: `/api/members/${userId}/role`,
+            method: "PATCH",
+            data: { role },
+        }),
+
+    remove: (userId: string) =>
+        request({ url: `/api/members/${userId}`, method: "DELETE" }),
+
+    acceptInvite: (token: string) =>
+        request({
+            url: "/api/members/accept",
+            method: "POST",
+            data: { token },
+        }),
+};
+
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+export const onboarding = {
+    /**
+     * GET /api/onboarding/status
+     * Returns the current user's onboarding state so the flow can resume.
+     */
+    status: () =>
+        request<OnboardingStatus>({
+            url: "/api/onboarding/status",
+        }),
+
+    /**
+     * POST /api/onboarding/organisation
+     * Creates the Employer profile linked to the current user.
+     */
+    createOrganisation: (body: CreateOrganisationDto) =>
+        request<Employer>({
+            url: "/api/onboarding/organisation",
+            method: "POST",
+            data: body,
+        }),
+
+    /**
+     * POST /api/onboarding/plan
+     * Selects the plan and marks onboarding complete.
+     */
+    selectPlan: (plan: Plan) =>
+        request<Employer>({
+            url: "/api/onboarding/plan",
+            method: "POST",
+            data: {
+                plan,
+            },
+        }),
+};
+
+export interface OnboardingStatus {
+    step: "organisations" | "create-organisation" | "plan" | "complete";
+    employer: Employer | null;
+    resuming: boolean;
+}
+
+export interface CreateOrganisationDto {
+    companyName: string;
+    regNumber?: string;
+    vatNumber?: string;
+    phone?: string;
+    address?: string;
+}
 
 // ─── Employer ─────────────────────────────────────────────────────────────────
 export const employer = {
@@ -180,6 +322,14 @@ export const payslips = {
         }),
 
     pdfUrl: (id: string) => `${BASE}/api/payslips/${id}/pdf`,
+
+    /**
+     * Public — verify a payslip by its token (the QR/email link target).
+     */
+    publicVerify: (token: string) =>
+        request<PayslipVerifyPayload>({
+            url: `/api/verify/${token}`,
+        }),
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -196,7 +346,7 @@ export interface Employer {
     logoUrl: string | null;
     plan: Plan;
     createdAt: string;
-    user: { email: string; name: string; emailVerified: boolean };
+    user: { id: string; email: string; name: string; emailVerified: boolean };
     _count: { employees: number };
 }
 
@@ -286,3 +436,43 @@ export interface CreatePayslipDto {
         type?: "FIXED" | "PERCENTAGE";
     }[];
 }
+
+export interface PayslipVerifyPayload {
+    valid: boolean;
+    message?: string;
+    payslip?: {
+        employeeName: string;
+        role: string | null;
+        companyName: string;
+        period: string;
+        payDate: string;
+        grossSalary: number;
+        netPay: number;
+        issuedAt: string;
+    };
+}
+
+// ─── Payslip verification (public) ────────────────────────────────────────────
+
+// ─── Invite acceptance (public) ───────────────────────────────────────────────
+export interface InvitePreview {
+    email: string;
+    role: OrgRole;
+    companyName: string;
+    expiresAt: string;
+    expired: boolean;
+}
+
+export const invites = {
+    /** GET /api/invites/:token — preview the invite without auth */
+    preview: (token: string) =>
+        request<InvitePreview>({ url: `/api/invites/${token}` }),
+
+    /** POST /api/members/accept — accept after signing in/up */
+    accept: (token: string) =>
+        request<{ companyName: string; role: OrgRole }>({
+            url: "/api/members/accept",
+            method: "POST",
+            data: { token },
+        }),
+};

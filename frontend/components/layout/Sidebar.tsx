@@ -19,8 +19,9 @@ const nav = [
     ],
   },
   {
-    label: 'Account',
+    label: 'Organisation',
     items: [
+      { href: '/dashboard/members', label: 'Members', icon: IconMembers },
       { href: '/dashboard/settings', label: 'Settings', icon: IconSettings },
     ],
   },
@@ -71,7 +72,7 @@ export function Sidebar({ employer }: SidebarProps) {
       {employer && (
         <div className="border-t border-[#E2EDE5] p-3">
           <Link href="/dashboard/settings" className="flex items-center gap-2.5 p-2 rounded-md hover:bg-[#F7F5F1] transition-colors">
-            <div className="w-7 h-7 rounded-md bg-[#EAF2EC] border border-[#C8D9CC] flex items-center justify-center text-[11px] font-semibold text-[#2D6A4F] flex-shrink-0">
+            <div className="w-7 h-7 rounded-md bg-[#EAF2EC] border border-[#C8D9CC] flex items-center justify-center text-[11px] font-semibold text-[#2D6A4F] shrink-0">
               {initials(employer.companyName)}
             </div>
             <div className="min-w-0">
@@ -86,9 +87,19 @@ export function Sidebar({ employer }: SidebarProps) {
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
+function IconMembers({ active }: { active: boolean }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.5} className="shrink-0">
+      <circle cx="5" cy="4.5" r="2.5" />
+      <path d="M1 13c0-2.5 1.8-4 4-4s4 1.5 4 4" />
+      <circle cx="11.5" cy="4.5" r="2" />
+      <path d="M11.5 8.5c1.5 0 2.5 1 2.5 2.5v2" strokeLinecap="round" />
+    </svg>
+  );
+}
 function IconDashboard({ active }: { active: boolean }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.5} className="flex-shrink-0">
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.5} className="shrink-0">
       <rect x="1" y="1" width="5.5" height="5.5" rx="1.2" />
       <rect x="8.5" y="1" width="5.5" height="5.5" rx="1.2" />
       <rect x="1" y="8.5" width="5.5" height="5.5" rx="1.2" />
@@ -98,7 +109,7 @@ function IconDashboard({ active }: { active: boolean }) {
 }
 function IconEmployees({ active }: { active: boolean }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.5} className="flex-shrink-0">
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.5} className="shrink-0">
       <circle cx="5.5" cy="4.5" r="2.5" />
       <path d="M1 13c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4" />
       <path d="M10.5 6.5c1.2 0 2.5.8 2.5 2.5v4" strokeLinecap="round" />
@@ -108,7 +119,7 @@ function IconEmployees({ active }: { active: boolean }) {
 }
 function IconPayslips({ active }: { active: boolean }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.5} className="flex-shrink-0">
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.5} className="shrink-0">
       <rect x="2" y="1" width="11" height="13" rx="1.5" />
       <path d="M5 5h5M5 7.5h5M5 10h3" strokeLinecap="round" />
     </svg>
@@ -116,7 +127,7 @@ function IconPayslips({ active }: { active: boolean }) {
 }
 function IconCalendar({ active }: { active: boolean }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.5} className="flex-shrink-0">
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.5} className="shrink-0">
       <rect x="1.5" y="2.5" width="12" height="11" rx="1.5" />
       <path d="M5 1.5v2M10 1.5v2M1.5 6.5h12" strokeLinecap="round" />
     </svg>
@@ -124,7 +135,7 @@ function IconCalendar({ active }: { active: boolean }) {
 }
 function IconSettings({ active }: { active: boolean }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.5} className="flex-shrink-0">
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.5} className="shrink-0">
       <circle cx="7.5" cy="7.5" r="2" />
       <path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M3.2 3.2l1 1M10.8 10.8l1 1M3.2 11.8l1-1M10.8 4.2l1-1" strokeLinecap="round" />
     </svg>

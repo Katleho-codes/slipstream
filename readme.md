@@ -107,6 +107,8 @@ published ports — this is enforced by omitting `ports:` for those services
 in `docker-compose.yml`, not just by firewall rules, so it holds even on a
 host with no other network protection.
 
+
+
 ## Secrets
 
 Secrets (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, etc.) are:

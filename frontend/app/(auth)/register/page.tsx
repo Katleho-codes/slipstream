@@ -22,7 +22,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await auth.signUp(form);
-      router.push('/dashboard');
+      router.push('/onboarding');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
@@ -35,14 +35,13 @@ export default function RegisterPage() {
       <h2 className="text-[18px] font-semibold text-[#0D0D0D] mb-1" >
         Create your account
       </h2>
-      <p className="text-[12px] text-[#9A9890] mb-6">Your company name can be updated after sign-up.</p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Input
-          label="Company name"
+          label="Your name"
           value={form.name}
           onChange={set('name')}
-          placeholder="Prestige Clothing (Pty) Ltd"
+          placeholder="Katleho Mabala"
           required
         />
         <Input
