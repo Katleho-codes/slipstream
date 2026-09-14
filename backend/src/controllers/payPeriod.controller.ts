@@ -9,7 +9,7 @@ import {
     sendError,
     sendServerError,
 } from "../utils/response";
-import { audit } from "../utils/audit";
+import { auditFromRequest } from "../utils/auditRequest";
 
 export const CreatePayPeriodSchema = z
     .object({
@@ -81,9 +81,7 @@ export async function createPayPeriod(
 
         createdPeriodId = period.id;
 
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "PAYPERIOD_CREATED",
             resourceType: "PAY_PERIOD",
             resourceId: period.id,
@@ -94,24 +92,18 @@ export async function createPayPeriod(
                 periodEnd: period.periodEnd,
                 payDate: period.payDate,
             },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendCreated(res, period, "Pay period created");
     } catch (err) {
         console.error("[createPayPeriod]", err);
 
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "PAYPERIOD_CREATED",
             resourceType: "PAY_PERIOD",
             resourceId: createdPeriodId,
             status: "FAILED",
             details: { body: req.body, error: (err as Error).message },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendServerError(res);
@@ -143,9 +135,7 @@ export async function deletePayPeriod(
 
         await prisma.payPeriod.delete({ where: { id: req.params.id } });
 
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "PAYPERIOD_DELETED",
             resourceType: "PAY_PERIOD",
             resourceId: req.params.id,
@@ -156,24 +146,18 @@ export async function deletePayPeriod(
                 periodEnd: existing.periodEnd,
                 payDate: existing.payDate,
             },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendSuccess(res, null, "Pay period deleted");
     } catch (err) {
         console.error("[deletePayPeriod]", err);
 
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "PAYPERIOD_DELETED",
             resourceType: "PAY_PERIOD",
             resourceId: req.params.id,
             status: "FAILED",
             details: { error: (err as Error).message },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendServerError(res);

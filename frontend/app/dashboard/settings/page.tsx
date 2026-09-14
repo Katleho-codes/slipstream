@@ -5,8 +5,11 @@ import { Topbar } from '@/components/layout/Topbar';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
-import { initials, PLAN_LIMITS, PLAN_PRICE } from '@/lib/utils';
+import { initials } from '@/lib/utils';
+import { PLANS } from '@/lib/plans';
+import { PlanUsageBar } from '@/components/ui/PlanUsageBar';
 import { Chip } from '@/components/ui/Chip';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -55,9 +58,16 @@ export default function SettingsPage() {
     );
   }
 
-  const limit = PLAN_LIMITS[data.plan] ?? 10;
-  const used = data._count.employees;
-  const usagePct = Math.round((used / limit) * 100);
+  if (!data) {
+    return (
+      <>
+        <Topbar title="Settings" />
+        <div className="flex justify-center py-20">
+          <div className="w-5 h-5 border-2 border-[#1A3D2B] border-t-transparent rounded-full animate-spin" />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -103,38 +113,20 @@ export default function SettingsPage() {
             </h2>
           </div>
           <div className="p-5">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <p className="text-[15px] font-semibold text-[#0D0D0D]">{data.plan}</p>
-                <p className="text-[12px] text-[#9A9890]">{PLAN_PRICE[data.plan]}</p>
-              </div>
-              <Chip variant={usagePct >= 80 ? 'amber' : 'green'}>
-                {used} / {limit} employees
-              </Chip>
-            </div>
-            <div className="h-1.5 bg-[#F7F5F1] rounded-full overflow-hidden mb-3">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(usagePct, 100)}%`, background: usagePct >= 80 ? '#D4901A' : '#2D6A4F' }}
-              />
-            </div>
+            <PlanUsageBar plan={data.plan} used={data._count.employees} />
 
             <div className="border border-[#E2EDE5] rounded-lg overflow-hidden mt-4">
-              {[
-                { plan: 'STARTER', label: 'Starter', price: 'R199/mo', employees: 10 },
-                { plan: 'GROWTH', label: 'Growth', price: 'R499/mo', employees: 50 },
-                { plan: 'BUSINESS', label: 'Business', price: 'R999/mo', employees: 150 },
-              ].map(tier => (
-                <div key={tier.plan} className={`flex items-center justify-between px-4 py-3 border-b border-[#E2EDE5] last:border-0 ${tier.plan === data.plan ? 'bg-[#EAF2EC]' : ''}`}>
+              {PLANS.map(tier => (
+                <div key={tier.id} className={`flex items-center justify-between px-4 py-3 border-b border-[#E2EDE5] last:border-0 ${tier.id === data.plan ? 'bg-[#EAF2EC]' : ''}`}>
                   <div>
-                    <p className="text-[13px] font-medium text-[#0D0D0D]">{tier.label}</p>
+                    <p className="text-[13px] font-medium text-[#0D0D0D]">{tier.name}</p>
                     <p className="text-[11px] text-[#9A9890]">Up to {tier.employees} employees</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-[13px] font-medium text-[#3A3A3A]">{tier.price}</span>
-                    {tier.plan === data.plan
+                    <span className="text-[13px] font-medium text-[#3A3A3A]">{tier.price}/mo</span>
+                    {tier.id === data.plan
                       ? <Chip variant="green">Current</Chip>
-                      : <Button size="sm" variant="ghost">Upgrade</Button>
+                      : <Link href="/dashboard/upgrade"><Button size="sm" variant="ghost">Upgrade</Button></Link>
                     }
                   </div>
                 </div>

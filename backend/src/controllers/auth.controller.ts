@@ -8,6 +8,8 @@ import {
     sendServerError,
     sendError,
 } from "../utils/response";
+import { auditFromRequest } from "../utils/auditRequest";
+import { PLANS } from "../lib/plans";
 
 // Validation schemas (used by the /profile update route)
 export const UpdateProfileSchema = z.object({
@@ -16,6 +18,10 @@ export const UpdateProfileSchema = z.object({
     vatNumber: z.string().optional(),
     phone: z.string().optional(),
     address: z.string().optional(),
+});
+
+export const ChangePlanSchema = z.object({
+    plan: z.enum(PLANS),
 });
 
 /**
@@ -95,6 +101,55 @@ export async function updateProfile(
         sendSuccess(res, employer, "Profile updated");
     } catch (err) {
         console.error("[updateProfile]", err);
+        sendServerError(res);
+    }
+}
+
+/**
+ * PATCH /api/employer/plan
+ * Changes the employer's plan. OWNER-only (billing permission).
+ */
+export async function changePlan(
+    req: AuthRequest,
+    res: Response,
+): Promise<void> {
+    try {
+        const { plan } = req.body;
+
+        const employer = await prisma.employer.findUnique({
+            where: { id: req.employer!.id },
+        });
+
+        if (!employer) {
+            sendNotFound(res, "Employer");
+            return;
+        }
+
+        if (employer.plan === plan) {
+            sendSuccess(res, { plan }, "Plan is already active");
+            return;
+        }
+
+        const updated = await prisma.employer.update({
+            where: { id: req.employer!.id },
+            data: { plan },
+            select: {
+                id: true,
+                plan: true,
+            },
+        });
+
+        await auditFromRequest(req, {
+            action: "EMPLOYER_UPDATED",
+            resourceType: "EMPLOYER",
+            resourceId: updated.id,
+            status: "SUCCESS",
+            details: { previousPlan: employer.plan, newPlan: plan },
+        });
+
+        sendSuccess(res, { plan: updated.plan }, "Plan updated");
+    } catch (err) {
+        console.error("[changePlan]", err);
         sendServerError(res);
     }
 }

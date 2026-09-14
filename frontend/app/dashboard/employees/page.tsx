@@ -41,6 +41,7 @@ export default function EmployeesPage() {
       setForm(empty);
       toast(`${emp.firstName} ${emp.lastName} added`);
     } catch (err: unknown) {
+      console.error("create employee ui error", err)
       if (err instanceof ApiError) {
         setErrors(err.errors ?? {});
       }

@@ -4,13 +4,12 @@ import { useEffect, useState } from 'react';
 import { members as membersApi, employer as employerApi, OrgMember, OrgInvite, OrgRole } from '@/lib/api';
 import { Topbar } from '@/components/layout/Topbar';
 import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
 import { Chip } from '@/components/ui/Chip';
 import { useToast } from '@/components/ui/Toast';
 import { fmtDateShort, initials } from '@/lib/utils';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
+import { InviteModal } from '@/components/members/InviteModal';
+import { ChangeRoleModal } from '@/components/members/ChangeRoleModal';
+import { RemoveMemberModal } from '@/components/members/RemoveMemberModal';
 
 const ROLE_LABEL: Record<OrgRole, string> = { OWNER: 'Owner', ADMIN: 'Admin', STAFF: 'Staff' };
 
@@ -31,8 +30,6 @@ const PERMISSIONS = [
     { label: 'Billing & plan changes', owner: true, admin: false, staff: false },
     { label: 'Delete organisation', owner: true, admin: false, staff: false },
 ];
-
-// ─── Small components ─────────────────────────────────────────────────────────
 
 function roleChip(role: OrgRole) {
     if (role === 'OWNER') return <Chip variant="green">Owner</Chip>;
@@ -58,35 +55,6 @@ function Cross() {
     );
 }
 
-function RadioRow({ selected, role, onClick }: { selected: boolean; role: 'ADMIN' | 'STAFF'; onClick: () => void }) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className="flex items-start gap-3 text-left p-3 rounded-lg transition-all w-full"
-            style={{
-                border: selected ? '2px solid #1A3D2B' : '1.5px solid #E2EDE5',
-                background: '#fff',
-                boxShadow: selected ? '0 0 0 3px rgba(26,61,43,0.06)' : 'none',
-            }}
-        >
-            <div style={{
-                width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 1,
-                border: `2px solid ${selected ? '#1A3D2B' : '#C8D9CC'}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-                {selected && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1A3D2B' }} />}
-            </div>
-            <div>
-                <p className="text-[13px] font-medium text-[#0D0D0D]">{ROLE_LABEL[role]}</p>
-                <p className="text-[12px] text-[#9A9890]">{ROLE_DESC[role]}</p>
-            </div>
-        </button>
-    );
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function MembersPage() {
     const { toast } = useToast();
 
@@ -96,16 +64,8 @@ export default function MembersPage() {
     const [currentUserId, setCurrentUserId] = useState('');
 
     const [inviteOpen, setInviteOpen] = useState(false);
-    const [inviteEmail, setInviteEmail] = useState('');
-    const [inviteRole, setInviteRole] = useState<'ADMIN' | 'STAFF'>('STAFF');
-    const [inviting, setInviting] = useState(false);
-
     const [roleTarget, setRoleTarget] = useState<OrgMember | null>(null);
-    const [newRole, setNewRole] = useState<'ADMIN' | 'STAFF'>('STAFF');
-    const [roleChanging, setRoleChanging] = useState(false);
-
     const [removeTarget, setRemoveTarget] = useState<OrgMember | null>(null);
-    const [removing, setRemoving] = useState(false);
 
     useEffect(() => {
         let active = true;
@@ -128,29 +88,8 @@ export default function MembersPage() {
                 if (active) setLoading(false);
             });
 
-        return () => {
-            active = false;
-        };
+        return () => { active = false; };
     }, [toast]);
-
-    // ─── Handlers ─────────────────────────────────────────────────────────────
-
-    async function handleInvite(e: React.FormEvent) {
-        e.preventDefault();
-        setInviting(true);
-        try {
-            const invite = await membersApi.invite({ email: inviteEmail, role: inviteRole });
-            setInviteList(l => [invite, ...l]);
-            setInviteOpen(false);
-            setInviteEmail('');
-            setInviteRole('STAFF');
-            toast(`Invite sent to ${invite.email}`);
-        } catch (err: unknown) {
-            toast(err instanceof Error ? err.message : 'Failed to send invite', 'error');
-        } finally {
-            setInviting(false);
-        }
-    }
 
     async function handleRevokeInvite(invite: OrgInvite) {
         try {
@@ -162,44 +101,9 @@ export default function MembersPage() {
         }
     }
 
-    async function handleRoleChange(e: React.FormEvent) {
-        e.preventDefault();
-        if (!roleTarget) return;
-        setRoleChanging(true);
-        try {
-            const updated = await membersApi.updateRole(roleTarget.user.id, newRole);
-            setMemberList(l => l.map(m => m.user.id === roleTarget.user.id ? { ...m, role: updated.role } : m));
-            setRoleTarget(null);
-            toast(`${roleTarget.user.name}'s role updated to ${ROLE_LABEL[newRole]}`);
-        } catch (err: unknown) {
-            toast(err instanceof Error ? err.message : 'Failed to update role', 'error');
-        } finally {
-            setRoleChanging(false);
-        }
-    }
-
-    async function handleRemove() {
-        if (!removeTarget) return;
-        setRemoving(true);
-        try {
-            await membersApi.remove(removeTarget.user.id);
-            setMemberList(l => l.filter(m => m.user.id !== removeTarget.user.id));
-            setRemoveTarget(null);
-            toast(`${removeTarget.user.name} removed`);
-        } catch (err: unknown) {
-            toast(err instanceof Error ? err.message : 'Failed to remove', 'error');
-        } finally {
-            setRemoving(false);
-        }
-    }
-
-    // ─── Derived state ────────────────────────────────────────────────────────
-
     const myRole = memberList.find(m => m.user.id === currentUserId)?.role ?? 'STAFF';
     const canManage = myRole === 'OWNER' || myRole === 'ADMIN';
     const isOwner = myRole === 'OWNER';
-
-    // ─── Render ───────────────────────────────────────────────────────────────
 
     return (
         <>
@@ -217,8 +121,6 @@ export default function MembersPage() {
             />
 
             <div className="p-7 flex-1 flex flex-col gap-6">
-
-                {/* Members table */}
                 <div>
                     <h2 className="text-[13px] font-semibold text-[#0D0D0D] mb-3" style={{ fontFamily: 'DM Sans, sans-serif' }}>
                         Organisation members
@@ -263,7 +165,7 @@ export default function MembersPage() {
                                                 <td className="px-4 py-3">
                                                     {canEdit && (
                                                         <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
-                                                            <Button size="sm" variant="ghost" onClick={() => { setRoleTarget(member); setNewRole(member.role as 'ADMIN' | 'STAFF'); }}>
+                                                            <Button size="sm" variant="ghost" onClick={() => setRoleTarget(member)}>
                                                                 Change role
                                                             </Button>
                                                             <Button size="sm" variant="danger" onClick={() => setRemoveTarget(member)}>
@@ -281,7 +183,6 @@ export default function MembersPage() {
                     )}
                 </div>
 
-                {/* Pending invites */}
                 {canManage && (
                     <div>
                         <div className="flex items-center justify-between mb-3">
@@ -339,7 +240,6 @@ export default function MembersPage() {
                     </div>
                 )}
 
-                {/* Permissions reference table */}
                 <div className="bg-white border border-[#E2EDE5] rounded-lg overflow-hidden">
                     <div className="px-5 py-3 border-b border-[#E2EDE5]">
                         <p className="text-[12px] font-semibold text-[#0D0D0D]" style={{ fontFamily: 'DM Sans, sans-serif' }}>Role permissions</p>
@@ -367,70 +267,29 @@ export default function MembersPage() {
                         </tbody>
                     </table>
                 </div>
-
             </div>
 
-            {/* Invite modal */}
-            <Modal open={inviteOpen} onClose={() => { setInviteOpen(false); setInviteEmail(''); }} title="Invite a member" width="sm">
-                <form onSubmit={handleInvite} className="flex flex-col gap-4">
-                    <Input
-                        label="Email address"
-                        type="email"
-                        value={inviteEmail}
-                        onChange={e => setInviteEmail(e.target.value)}
-                        placeholder="colleague@company.co.za"
-                        required
-                        autoFocus
-                    />
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6860]">Role</label>
-                        <div className="flex flex-col gap-2">
-                            <RadioRow selected={inviteRole === 'ADMIN'} role="ADMIN" onClick={() => setInviteRole('ADMIN')} />
-                            <RadioRow selected={inviteRole === 'STAFF'} role="STAFF" onClick={() => setInviteRole('STAFF')} />
-                        </div>
-                    </div>
-                    <p className="text-[11px] text-[#9A9890] bg-[#F7F5F1] rounded-md px-3 py-2">
-                        They&apos;ll receive an email with a link to join. The invite expires in 48 hours.
-                    </p>
-                    <div className="flex justify-end gap-2 pt-1 border-t border-[#E2EDE5]">
-                        <Button type="button" variant="ghost" onClick={() => setInviteOpen(false)}>Cancel</Button>
-                        <Button type="submit" variant="primary" loading={inviting}>Send invite</Button>
-                    </div>
-                </form>
-            </Modal>
-
-            {/* Change role modal */}
-            <Modal open={!!roleTarget} onClose={() => setRoleTarget(null)} title={`Change role — ${roleTarget?.user.name ?? ''}`} width="sm">
-                <form onSubmit={handleRoleChange} className="flex flex-col gap-4">
-                    <p className="text-[13px] text-[#6B6860]">
-                        Changing the role affects what {roleTarget?.user.name} can do across your organisation.
-                    </p>
-                    <div className="flex flex-col gap-2">
-                        <RadioRow selected={newRole === 'ADMIN'} role="ADMIN" onClick={() => setNewRole('ADMIN')} />
-                        <RadioRow selected={newRole === 'STAFF'} role="STAFF" onClick={() => setNewRole('STAFF')} />
-                    </div>
-                    <div className="flex justify-end gap-2 pt-1 border-t border-[#E2EDE5]">
-                        <Button type="button" variant="ghost" onClick={() => setRoleTarget(null)}>Cancel</Button>
-                        <Button type="submit" variant="primary" loading={roleChanging} disabled={newRole === roleTarget?.role}>
-                            Update role
-                        </Button>
-                    </div>
-                </form>
-            </Modal>
-
-            {/* Remove confirm */}
-            <Modal open={!!removeTarget} onClose={() => setRemoveTarget(null)} title="Remove member" width="sm">
-                <div className="flex flex-col gap-4">
-                    <p className="text-[13px] text-[#3A3A3A] leading-relaxed">
-                        Remove <strong>{removeTarget?.user.name}</strong> ({removeTarget?.user.email}) from your organisation?
-                        They will immediately lose access to all employees, payslips, and company data.
-                    </p>
-                    <div className="flex justify-end gap-2 pt-1 border-t border-[#E2EDE5]">
-                        <Button variant="ghost" onClick={() => setRemoveTarget(null)}>Cancel</Button>
-                        <Button variant="danger" loading={removing} onClick={handleRemove}>Remove member</Button>
-                    </div>
-                </div>
-            </Modal>
+            <InviteModal
+                open={inviteOpen}
+                onClose={() => setInviteOpen(false)}
+                onInvited={invite => { setInviteList(l => [invite, ...l]); setInviteOpen(false); }}
+            />
+            <ChangeRoleModal
+                target={roleTarget}
+                onClose={() => setRoleTarget(null)}
+                onChanged={(userId, role) => {
+                    setMemberList(l => l.map(m => m.user.id === userId ? { ...m, role } : m));
+                    setRoleTarget(null);
+                }}
+            />
+            <RemoveMemberModal
+                target={removeTarget}
+                onClose={() => setRemoveTarget(null)}
+                onRemoved={userId => {
+                    setMemberList(l => l.filter(m => m.user.id !== userId));
+                    setRemoveTarget(null);
+                }}
+            />
         </>
     );
 }

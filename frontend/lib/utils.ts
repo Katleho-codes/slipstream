@@ -36,10 +36,5 @@ export function initials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 }
 
-export const PLAN_LIMITS: Record<string, number> = {
-  STARTER: 10, GROWTH: 50, BUSINESS: 150, ENTERPRISE: Infinity,
-};
-
-export const PLAN_PRICE: Record<string, string> = {
-  STARTER: 'R199/mo', GROWTH: 'R499/mo', BUSINESS: 'R999/mo', ENTERPRISE: 'Custom',
-};
+// Re-export plan constants from the shared plans module for backwards compatibility
+export { PLAN_LIMITS, PLAN_PRICE } from './plans';

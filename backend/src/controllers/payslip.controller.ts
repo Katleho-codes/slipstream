@@ -22,7 +22,7 @@ import {
     sendNotFound,
     sendServerError,
 } from "../utils/response";
-import { audit } from "../utils/audit";
+import { auditFromRequest } from "../utils/auditRequest";
 
 export const CreatePayslipSchema = z.object({
     employeeId: z.string().min(1),
@@ -192,8 +192,6 @@ export async function createPayslip(
                 uif,
                 sdl,
                 netPay,
-                // verifyToken is left to Prisma's cuid default for the insert —
-                // it is swapped for a real HMAC below, once the id exists.
                 issuedAt: now,
                 deductions: { create: deductions },
             },
@@ -206,9 +204,6 @@ export async function createPayslip(
 
         createdPayslipId = payslip.id;
 
-        // Bind a tamper-proof token to the actual payslip ids now that the
-        // row exists — the public verify endpoint checks it with a constant
-        // time comparison.
         const verifyToken = generateVerifyToken({
             payslipId: payslip.id,
             employeeId,
@@ -220,42 +215,30 @@ export async function createPayslip(
         });
         payslip.verifyToken = verifyToken;
 
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "PAYSLIP_CREATED",
             resourceType: "PAYSLIP",
             resourceId: payslip.id,
             status: "SUCCESS",
-            details: {
-                employeeId,
-                periodId,
-                grossSalary,
-                netPay,
-            },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
+            details: { employeeId, periodId, grossSalary, netPay },
         });
 
         sendCreated(res, payslip, "Payslip created");
     } catch (err) {
         console.error("[createPayslip]", err);
 
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "PAYSLIP_CREATED",
             resourceType: "PAYSLIP",
             resourceId: createdPayslipId,
             status: "FAILED",
             details: { body: req.body, error: (err as Error).message },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendServerError(res);
     }
 }
+
 export async function issuePayslip(
     req: AuthRequest,
     res: Response,
@@ -311,11 +294,7 @@ export async function issuePayslip(
             results.email = sent;
         }
 
-        // Single audit after both operations settle —
-        // details captures exactly what succeeded and what didn't
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "PAYSLIP_ISSUED",
             resourceType: "PAYSLIP",
             resourceId: payslip.id,
@@ -328,8 +307,6 @@ export async function issuePayslip(
                 period: payslip.period.label,
                 netPay: payslip.netPay,
             },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendSuccess(
@@ -340,16 +317,12 @@ export async function issuePayslip(
     } catch (err) {
         console.error("[issuePayslip]", err);
 
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "PAYSLIP_ISSUED",
             resourceType: "PAYSLIP",
             resourceId: req.params.id,
             status: "FAILED",
             details: { error: (err as Error).message },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendServerError(res);
@@ -387,9 +360,7 @@ export async function downloadPayslipPDF(
         const name = `${payslip.employee.firstName}_${payslip.employee.lastName}`;
         const filename = `payslip_${name}_${payslip.period.label.replace(/\s/g, "_")}.pdf`;
 
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "PAYSLIP_DOWNLOADED",
             resourceType: "PAYSLIP",
             resourceId: payslip.id,
@@ -399,8 +370,6 @@ export async function downloadPayslipPDF(
                 employeeName: `${payslip.employee.firstName} ${payslip.employee.lastName}`,
                 period: payslip.period.label,
             },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         res.setHeader("Content-Type", "application/pdf");
@@ -412,21 +381,18 @@ export async function downloadPayslipPDF(
     } catch (err) {
         console.error("[downloadPayslipPDF]", err);
 
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "PAYSLIP_DOWNLOADED",
             resourceType: "PAYSLIP",
             resourceId: req.params.id,
             status: "FAILED",
             details: { error: (err as Error).message },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendServerError(res);
     }
 }
+
 // Public — no auth
 export async function verifyPayslip(
     req: Request,
@@ -461,15 +427,10 @@ export async function verifyPayslip(
         });
 
         if (!payslip) {
-            res.status(404).json({
-                valid: false,
-                message: "Payslip not found or token is invalid",
-            });
+            sendNotFound(res, "Payslip");
             return;
         }
 
-        // Constant-time HMAC check — the token must be the one we issued for
-        // this exact payslip, not merely any value that was stored alongside it.
         if (
             !verifyPayslipToken(payslip.verifyToken, {
                 payslipId: payslip.id,
@@ -477,14 +438,11 @@ export async function verifyPayslip(
                 issuedAt: payslip.issuedAt,
             })
         ) {
-            res.status(404).json({
-                valid: false,
-                message: "Payslip not found or token is invalid",
-            });
+            sendNotFound(res, "Payslip");
             return;
         }
 
-        res.json({
+        sendSuccess(res, {
             valid: true,
             payslip: {
                 employeeName: `${payslip.employee.firstName} ${payslip.employee.lastName}`,
@@ -499,9 +457,6 @@ export async function verifyPayslip(
         });
     } catch (err) {
         console.error("[verifyPayslip]", err);
-        res.status(500).json({
-            valid: false,
-            message: "Verification service error",
-        });
+        sendServerError(res);
     }
 }

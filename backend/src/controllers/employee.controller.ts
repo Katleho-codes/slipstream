@@ -9,7 +9,8 @@ import {
     sendNotFound,
     sendServerError,
 } from "../utils/response";
-import { audit } from "../utils/audit";
+import { auditFromRequest } from "../utils/auditRequest";
+import { PLAN_LIMITS } from "../lib/plans";
 
 export const CreateEmployeeSchema = z.object({
     firstName: z.string().min(3, "First name required"),
@@ -34,13 +35,6 @@ export const CreateEmployeeSchema = z.object({
 export const UpdateEmployeeSchema = CreateEmployeeSchema.partial().extend({
     isActive: z.boolean().optional(),
 });
-
-const PLAN_LIMITS: Record<string, number> = {
-    STARTER: 10,
-    GROWTH: 50,
-    BUSINESS: 150,
-    ENTERPRISE: Infinity,
-};
 
 export async function getEmployees(
     req: AuthRequest,
@@ -107,7 +101,6 @@ export async function createEmployee(
     req: AuthRequest,
     res: Response,
 ): Promise<void> {
-    // Hoist so both try and catch can reference it
     let createdEmployeeId: string | undefined;
 
     try {
@@ -171,39 +164,29 @@ export async function createEmployee(
                     ? new Date(req.body.startDate)
                     : undefined,
             },
-            select: { id: true },
+            select: { id: true, firstName: true, lastName: true },
         });
 
         createdEmployeeId = employee.id;
 
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "EMPLOYEE_CREATED",
             resourceType: "Employee",
             resourceId: employee.id,
             status: "SUCCESS",
             details: req.body,
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendCreated(res, employee, "Employee created");
     } catch (err) {
         console.error("[createEmployee]", err);
 
-        // resourceId is undefined here if the create itself failed — that's correct.
-        // We still log the attempt with whatever context we have.
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "EMPLOYEE_CREATED",
             resourceType: "Employee",
-            resourceId: createdEmployeeId, // undefined if create failed
+            resourceId: createdEmployeeId,
             status: "FAILED",
             details: { body: req.body, error: (err as Error).message },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendServerError(res);
@@ -214,8 +197,6 @@ export async function updateEmployee(
     req: AuthRequest,
     res: Response,
 ): Promise<void> {
-    // Hoist so both try and catch can reference it
-    // let updatedEmployeeId: string | undefined;
     try {
         const existing = await prisma.employee.findFirst({
             where: { id: req.params.id, employerId: req.employer!.id },
@@ -234,31 +215,27 @@ export async function updateEmployee(
                     : undefined,
             },
         });
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+
+        await auditFromRequest(req, {
             action: "EMPLOYEE_UPDATED",
             resourceType: "Employee",
-            resourceId: req.params.id, // undefined if create failed
+            resourceId: req.params.id,
             status: "SUCCESS",
             details: req.body,
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
+
         sendSuccess(res, employee, "Employee updated");
     } catch (err) {
         console.error("[updateEmployee]", err);
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+
+        await auditFromRequest(req, {
             action: "EMPLOYEE_UPDATED",
             resourceType: "Employee",
-            resourceId: req.params.id, // undefined if create failed
+            resourceId: req.params.id,
             status: "FAILED",
             details: { body: req.body, error: (err as Error).message },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
+
         sendServerError(res);
     }
 }

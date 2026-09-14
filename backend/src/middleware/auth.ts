@@ -48,41 +48,6 @@ export async function requireAuth(
             return;
         }
 
-        // const employer = await prisma.employer.findUnique({
-        //     where: { userId: session.user.id },
-        //     select: {
-        //         id: true,
-        //         userId: true,
-        //         companyName: true,
-        //         plan: true,
-        //         isActive: true,
-        //         onboardingComplete: true,
-        //     },
-        // });
-
-        // if (!employer) {
-        //     sendUnauthorized(
-        //         res,
-        //         "Organisation not found — complete onboarding first",
-        //     );
-        //     return;
-        // }
-
-        // if (!employer.isActive) {
-        //     sendUnauthorized(res, "Account inactive");
-        //     return;
-        // }
-
-        // req.employer = {
-        //     id: employer.id,
-        //     userId: employer.userId,
-        //     email: session.user.email,
-        //     companyName: employer.companyName,
-        //     plan: employer.plan,
-        //     isActive: employer.isActive,
-        //     onboardingComplete: employer.onboardingComplete,
-        // };
-
         req.employer = {
             id: membership.employer.id,
             userId: session.user.id,

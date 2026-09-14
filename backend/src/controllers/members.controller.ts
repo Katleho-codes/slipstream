@@ -7,8 +7,8 @@ import prisma from "../utils/prisma";
 import { OrgRole } from "@prisma/client";
 import { AuthRequest } from "../middleware/auth";
 import { auth } from "../lib/auth";
-import { sendPayslipEmail } from "../services/email.service";
-import { audit } from "../utils/audit";
+import { sendInviteEmail } from "../services/email.service";
+import { auditFromRequest } from "../utils/auditRequest";
 import {
     sendSuccess,
     sendCreated,
@@ -110,7 +110,7 @@ export async function inviteMember(
             },
         });
 
-        // Send invite email
+        // Send invite email (fire-and-forget via shared service)
         const inviteUrl = `${process.env.FRONTEND_URL}/invite/${invite.token}`;
         await sendInviteEmail({
             to: email,
@@ -120,16 +120,12 @@ export async function inviteMember(
             expiresAt: invite.expiresAt,
         });
 
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId,
+        await auditFromRequest(req, {
             action: "MEMBER_INVITE",
             resourceType: "OrgInvite",
             resourceId: invite.id,
             status: "SUCCESS",
             details: { email, role },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendCreated(
@@ -138,7 +134,7 @@ export async function inviteMember(
             "Invite sent",
         );
     } catch (err) {
-        console.log("[inviteMember]", err);
+        console.error("[inviteMember]", err);
         sendServerError(res);
     }
 }
@@ -277,16 +273,12 @@ export async function acceptInvite(req: Request, res: Response): Promise<void> {
             }),
         ]);
 
-        await audit({
-            performedByUserId: session.user.id,
-            employerId: invite.employerId,
+        await auditFromRequest(req as AuthRequest, {
             action: "MEMBER_ACCEPTED",
             resourceType: "OrgMember",
             resourceId: member.id,
             status: "SUCCESS",
             details: { role: invite.role, inviteId: invite.id },
-            ipAddress: (req as { ip?: string }).ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendCreated(
@@ -299,7 +291,7 @@ export async function acceptInvite(req: Request, res: Response): Promise<void> {
             `Welcome to ${invite.employer.companyName}`,
         );
     } catch (err) {
-        console.log("[acceptInvite]", err);
+        console.error("[acceptInvite]", err);
         sendServerError(res);
     }
 }
@@ -367,16 +359,12 @@ export async function updateMemberRole(
             },
         });
 
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "MEMBER_ROLE_CHANGE",
             resourceType: "OrgMember",
             resourceId: updated.id,
             status: "SUCCESS",
             details: { targetUserId, previousRole: member.role, newRole: role },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendSuccess(res, updated, "Role updated");
@@ -433,9 +421,7 @@ export async function removeMember(
             },
         });
 
-        await audit({
-            performedByUserId: req.employer?.userId,
-            employerId: req.employer?.id,
+        await auditFromRequest(req, {
             action: "MEMBER_DELETED",
             resourceType: "OrgMember",
             resourceId: member.id,
@@ -445,8 +431,6 @@ export async function removeMember(
                 role: member.role,
                 email: member.user.email,
             },
-            ipAddress: req.ip,
-            userAgent: req.headers["user-agent"] as string,
         });
 
         sendSuccess(res, null, "Member removed");
@@ -456,61 +440,6 @@ export async function removeMember(
     }
 }
 
-// ─── Email helper ─────────────────────────────────────────────────────────────
-
-async function sendInviteEmail(params: {
-    to: string;
-    companyName: string;
-    role: string;
-    inviteUrl: string;
-    expiresAt: Date;
-}): Promise<void> {
-    const { Resend } = await import("resend");
-    const resend = new Resend(process.env.RESEND_API_KEY);
-
-    const roleLabel =
-        params.role === "ADMIN" ? "Administrator" : "Staff (view only)";
-    const expiryStr = params.expiresAt.toLocaleDateString("en-ZA", {
-        timeZone: "Africa/Johannesburg",
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-    });
-
-    await resend.emails.send({
-        from: `${process.env.RESEND_FROM_NAME} <${process.env.RESEND_FROM_EMAIL}>`,
-        to: params.to,
-        subject: `You've been invited to join ${params.companyName} on SlipStream`,
-        html: `
-<!DOCTYPE html>
-<html>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0">
-  <tr><td align="center">
-    <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e5e5">
-      <tr><td style="background:#1A3D2B;padding:28px 32px">
-        <p style="margin:0;font-size:22px;font-weight:600;color:#fff;font-family:Arial,sans-serif">SlipStream</p>
-        <p style="margin:4px 0 0;font-size:13px;color:#9FE1CB">Organisation invitation</p>
-      </td></tr>
-      <tr><td style="padding:32px">
-        <p style="margin:0 0 16px;font-size:15px;color:#111">You've been invited to join <strong>${params.companyName}</strong> on SlipStream as <strong>${roleLabel}</strong>.</p>
-        <table cellpadding="0" cellspacing="0" style="margin:24px 0">
-          <tr><td style="background:#1A3D2B;border-radius:8px">
-            <a href="${params.inviteUrl}" style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:600;color:#fff;text-decoration:none">Accept invitation →</a>
-          </td></tr>
-        </table>
-        <p style="margin:0;font-size:13px;color:#666">This invite expires on <strong>${expiryStr}</strong>. If you don't have a SlipStream account yet, you'll be able to create one when you click the link.</p>
-      </td></tr>
-      <tr><td style="padding:16px 32px;border-top:1px solid #f0f0f0">
-        <p style="margin:0;font-size:12px;color:#999">SlipStream by Lsquared Technologies · If you weren't expecting this invite, you can ignore this email.</p>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body>
-</html>`,
-    });
-}
 // ─── GET /api/invites/:token (public) ────────────────────────────────────────
 /**
  * Returns a safe preview of the invite so the acceptance page
@@ -528,10 +457,7 @@ export async function previewInvite(
         });
 
         if (!invite) {
-            res.status(404).json({
-                success: false,
-                message: "Invite not found or already used",
-            });
+            sendNotFound(res, "Invite");
             return;
         }
 
@@ -544,7 +470,7 @@ export async function previewInvite(
             accepted: !!invite.acceptedAt,
         });
     } catch (err) {
-        console.log("[previewInvite]", err);
+        console.error("[previewInvite]", err);
         sendServerError(res);
     }
 }

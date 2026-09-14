@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-09-14
+
+### Added
+
+- shared plan config (`lib/plans.ts`) used by onboarding, settings, and upgrade screens
+- `PATCH /api/employer/plan` endpoint — owner-only plan switching
+- `/dashboard/upgrade` page with plan selection and real-time switch
+- backend route modules split into `onboarding`, `employer`, `employees`, `payPeriods`, `payslips`, `members`, `public` (routes/index.ts aggregator)
+- `lib/plans.ts` (backend) shared plan constants, `middleware/asyncHandler.ts`, `utils/auditRequest.ts`
+- `sendInviteEmail` helper in `email.service.ts` with HTML template
+- `tests/changePlan.test.ts` — 6 tests for the new endpoint
+- frontend `lib/api/` domain modules (`client`, `types`, `auth`, `employer`, `onboarding`, `employees`, `payPeriods`, `payslips`, `members`, `invites`)
+- shared UI components: `Spinner`, `EmptyState`, `SectionCard`, `PlanUsageBar`, `StepHeading`, `InlineError`, `InlinePrimaryButton`
+- onboarding components: `OnboardingSidebar`, `OrganisationsStep`, `CreateOrganisationStep`, `PlanStep`, `CompleteStep`
+- members modals: `InviteModal`, `ChangeRoleModal`, `RemoveMemberModal`
+- payslips modal: `CreatePayslipModal`
+
+### Changed
+
+- settings and dashboard "Upgrade" buttons now route to `/dashboard/upgrade`
+- `onboarding/page.tsx` refactored from 650 lines to 180 lines (components extracted)
+- `members/page.tsx` refactored (3 modals extracted to `components/members/`)
+- `payslips/page.tsx` refactored (create modal extracted)
+- `members.controller.ts` refactored to use `sendInviteEmail`, `auditFromRequest`, `sendNotFound`/`sendError`
+- `employee.controller.ts` uses shared `PLAN_LIMITS` from `lib/plans`
+- `payslip.controller.ts` and `payPeriod.controller.ts` use `auditFromRequest`
+- `email.service.ts` consolidated payslip email to use `EMAIL_SHELL`
+- old monolithic `frontend/lib/api.ts` deleted; replaced by `lib/api/` domain modules
+- `lib/utils.ts` re-exports `PLAN_LIMITS`/`PLAN_PRICE` from `lib/plans` for backwards compatibility
+
+### Fixed
+
+- removed ~30 lines of commented-out dead code in `middleware/auth.ts`
+
 ## 2026-09-12
 
 ### Added

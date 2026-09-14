@@ -233,7 +233,7 @@ export default function DashboardPage() {
               />
             </div>
             {usagePct >= 80 && (
-              <Link href="/dashboard/settings">
+              <Link href="/dashboard/upgrade">
                 <Button variant="ghost" size="sm" className="mt-3 w-full justify-center">
                   Upgrade plan →
                 </Button>
