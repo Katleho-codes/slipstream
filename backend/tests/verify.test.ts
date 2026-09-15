@@ -19,11 +19,11 @@ describe("GET /api/verify/:token", () => {
         );
 
         expect(res.status).toBe(200);
-        expect(res.body.valid).toBe(true);
-        expect(res.body.payslip.employeeName).toBe(
+        expect(res.body.data.valid).toBe(true);
+        expect(res.body.data.payslip.employeeName).toBe(
             `${fixturePayslip.employee.firstName} ${fixturePayslip.employee.lastName}`,
         );
-        expect(res.body.payslip.companyName).toBe(
+        expect(res.body.data.payslip.companyName).toBe(
             fixturePayslip.period.employer.companyName,
         );
     });
@@ -34,7 +34,7 @@ describe("GET /api/verify/:token", () => {
         const res = await request(app).get("/api/verify/tampered-token");
 
         expect(res.status).toBe(404);
-        expect(res.body.valid).toBe(false);
+        expect(res.body.success).toBe(false);
     });
 
     it("does not expose the employee's ID number to an anonymous verifier", async () => {
@@ -50,8 +50,8 @@ describe("GET /api/verify/:token", () => {
         );
 
         expect(res.status).toBe(200);
-        expect(res.body.payslip).not.toHaveProperty("idNumber");
-        expect(res.body.payslip.grossSalary).toBe(fixturePayslip.grossSalary);
-        expect(res.body.payslip.netPay).toBe(fixturePayslip.netPay);
+        expect(res.body.data.payslip).not.toHaveProperty("idNumber");
+        expect(res.body.data.payslip.grossSalary).toBe(fixturePayslip.grossSalary);
+        expect(res.body.data.payslip.netPay).toBe(fixturePayslip.netPay);
     });
 });

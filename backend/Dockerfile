@@ -1,4 +1,3 @@
-# ---- Stage 1: build ----
 FROM node:20-alpine AS builder
 WORKDIR /app
 
@@ -43,6 +42,4 @@ COPY --from=builder --chown=app:app /app/dist ./dist
 COPY --from=builder --chown=app:app /app/prisma ./prisma
 COPY --from=builder --chown=app:app /app/package*.json ./
 
-# Intentionally NOT publishing a port with EXPOSE/ports in compose —
-# this service is only reachable on the internal Docker network.
-CMD ["node", "dist/index.js"]
+CMD ["npm", "start"]
