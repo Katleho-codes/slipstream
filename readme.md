@@ -33,7 +33,7 @@ Digital payslip & pay history platform for South African employers.
 
 | Layer    | Stack                                                                                                                                        |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend  | Node.js + Express + TypeScript, Prisma + PostgreSQL, Better Auth, Zod v4, Resend, Puppeteer (SARS-compliant PDF generation + HMAC QR tokens) |
+| Backend  | Node.js + Express + TypeScript, Prisma + PostgreSQL, Better Auth, Zod v4, Nodemailer/Mailtrap, Puppeteer (SARS-compliant PDF generation + HMAC QR tokens) |
 | Frontend | Next.js dashboard                                                                                                                            |
 | Database | PostgreSQL 16                                                                                                                                |
 | Proxy    | Caddy (automatic HTTPS)                                                                                                                      |
@@ -111,7 +111,7 @@ host with no other network protection.
 
 ## Secrets
 
-Secrets (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, etc.) are:
+Secrets (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `MAIL_USER`, etc.) are:
 
 - **Never** written into a Dockerfile as `ENV`/`ARG` — that would bake them
   into image layers.

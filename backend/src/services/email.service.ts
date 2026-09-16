@@ -1,8 +1,17 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import "dotenv/config";
-const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = `${process.env.RESEND_FROM_NAME} <${process.env.RESEND_FROM_EMAIL}>`;
+const transporter = nodemailer.createTransport({
+    host: process.env.MAIL_HOST,
+    port: Number(process.env.MAIL_PORT ?? 2525),
+    secure: false,
+    auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+    },
+});
+
+const FROM = `${process.env.MAIL_FROM_NAME} <${process.env.MAIL_FROM_EMAIL}>`;
 const VERIFY_BASE = process.env.VERIFY_BASE_URL;
 
 interface PayslipEmailParams {
@@ -89,14 +98,10 @@ async function sendEmail(
     html: string,
 ): Promise<boolean> {
     try {
-        const { error } = await resend.emails.send({ from: FROM, to, subject, html });
-        if (error) {
-            console.error("[sendEmail] Resend error:", error);
-            return false;
-        }
+        await transporter.sendMail({ from: FROM, to, subject, html });
         return true;
     } catch (err) {
-        console.error("[sendEmail] Unexpected error:", err);
+        console.error("[sendEmail] SMTP error:", err);
         return false;
     }
 }
